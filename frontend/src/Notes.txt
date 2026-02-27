@@ -1,0 +1,111 @@
+
+*****Authentication*****
+1 Login
+    endpoint : /auth/login
+        {
+        email: string;
+        password: string;
+        }
+    Expected Response
+        {
+        token: string;
+        user: {
+            id: string;
+            email: string;
+            role: "SUPER_ADMIN" | "TENANT_ADMIN" | "STAFF";
+            tenantId?: string;
+        }
+
+2. Create / Update Plan
+
+POST /platform/plans
+PUT /platform/plans/:id
+
+{
+  name: string;
+  price: number;                // Monthly price
+  tenantLimit: number;
+  eventSpaceLimit: number;
+  staffLimit: number;
+  features: string[];
+  status: "ACTIVE" | "INACTIVE";
+}
+
+3. DELETE /platform/plans/:id
+4.Create Tenant
+
+POST /platform/tenants
+
+{
+  name: string;
+  email: string;              // Admin email
+  planId: string;
+  status: "ACTIVE" | "SUSPENDED";
+}
+
+5.Tenant — Event Space Management
+Create Event Space
+
+POST /tenant/event-spaces
+
+{
+  name: string;
+  contactNumber: string;
+  capacity: number;
+  basePrice: number;
+  description?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  email?: string;
+  isActive: boolean;
+  coverImage?: File | string;  // depends on upload strategy
+}
+
+6.PUT /tenant/event-spaces/:id
+
+7.{
+  name: string;
+  email: string;
+  role: "MANAGER" | "COORDINATOR" | "SUPPORT";
+  status: "ACTIVE" | "INACTIVE";
+}
+
+8.Create Booking
+
+POST /tenant/bookings
+
+{
+  eventSpaceId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  eventDate: string;     // ISO date
+  eventType?: string;
+  guestCount: number;
+  status: "PENDING" | "CONFIRMED" | "CANCELLED";
+}
+
+9.PUT /tenant/settings
+
+{
+  venueName: string;
+  email: string;
+  contactNumber: string;
+  website?: string;
+  description?: string;
+
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+
+  currency: string;
+  approvalMode: "MANUAL" | "AUTO";
+  cancellationPolicy: string;
+
+  logo?: File | string;
+  coverImage?: File | string;
+}

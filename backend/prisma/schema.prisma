@@ -1,0 +1,161 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  STAFF
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  price           Float
+  tenantLimit     Int
+  eventSpaceLimit Int
+  staffLimit      Int
+  features        String[]
+  status          Boolean  @default(true)
+  tenants         Tenant[]
+  createdAt       DateTime @default(now())
+}
+
+model Tenant {
+  id          String    @id @default(uuid())
+  name        String
+  email       String?
+  phone       String?
+  planId      String?
+  createdById String?
+  plan        Plan?     @relation(fields: [planId], references: [id])
+  createdBy   User?     @relation("TenantCreator", fields: [createdById], references: [id])
+  users       User[]
+  venues      Venue[]
+  createdAt   DateTime  @default(now())
+  isActive    Boolean   @default(true)
+  isDeleted   Boolean   @default(false)
+  updatedAt   DateTime  @updatedAt @default(now())
+  bookings    Booking[]
+
+  @@index([planId])
+  @@index([createdById])
+}
+
+model User {
+  id             String         @id @default(uuid())
+  name           String
+  email          String         @unique
+  password       String
+  role           Role
+  phone          String?
+  avatarUrl      String?
+  tenantId       String?
+  tenant         Tenant?        @relation(fields: [tenantId], references: [id])
+  createdTenants Tenant[]       @relation("TenantCreator")
+  createdAt      DateTime       @default(now())
+  notifications  Notification[]
+
+  // ✅ NEW: audit back-relations
+  createdBookings Booking[]    @relation("BookingCreator")
+  uploadedImages  VenueImage[] @relation("ImageUploader")
+}
+
+model Venue {
+  id               String       @id @default(uuid())
+  name             String
+  location         String
+  capacity         Int
+  price            Float
+  tenantId         String
+  assignedStaffIds String[]     @default([])
+  tenant           Tenant       @relation(fields: [tenantId], references: [id])
+  images           VenueImage[]
+  bookings         Booking[]
+  phone            String?
+  description      String?
+  city             String?
+  state            String?
+  pincode          String?
+  email            String?
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+
+  @@index([tenantId])
+}
+
+model VenueImage {
+  id         String   @id @default(uuid())
+  url        String
+  venueId    String
+  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  // ✅ NEW: audit + featured flag
+  isFeatured  Boolean @default(false)
+  createdById String?
+  createdBy   User?   @relation("ImageUploader", fields: [createdById], references: [id])
+
+  @@index([venueId])
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  venueId     String
+  venue       Venue         @relation(fields: [venueId], references: [id])
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  clientName  String
+  clientEmail String?
+  clientPhone String?
+  startDate   DateTime
+  endDate     DateTime
+  totalPrice  Float
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt @default(now())
+
+  // ✅ NEW: audit trail
+  createdById String?
+  createdBy   User?   @relation("BookingCreator", fields: [createdById], references: [id])
+
+  @@index([venueId])
+  @@index([tenantId])
+  @@index([createdById])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+}
+
+enum NotificationType {
+  WARNING
+  INFO
+  ERROR
+}
+
