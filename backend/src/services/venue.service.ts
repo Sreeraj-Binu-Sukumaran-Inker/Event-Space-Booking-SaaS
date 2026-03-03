@@ -14,7 +14,7 @@ import { prisma } from "../prisma/client";
 import { AppError } from "../utils/AppError";
 import { supabase } from "../utils/supabase.client";
 import { v4 as uuidv4 } from "uuid";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -38,6 +38,8 @@ interface CreateVenueInput {
   email?: string;
   isActive?: boolean;
   assignedStaffIds?: string[];
+  eventTypes?: string[];
+  facilities?: { name: string; cost: number }[];
 }
 
 interface UpdateVenueInput {
@@ -53,6 +55,8 @@ interface UpdateVenueInput {
   email?: string;
   isActive?: boolean;
   assignedStaffIds?: string[];
+  eventTypes?: string[];
+  facilities?: { name: string; cost: number }[];
 }
 
 // ─── GET ALL VENUES ───────────────────────────────────────────────────────────
@@ -71,8 +75,9 @@ export const getVenues = async (caller: CallerContext) => {
     where,
     include: {
       images: true,
+      facilities: true,
       _count: { select: { bookings: true } },
-    },
+    } as any, // Cast to any to bypass strict Prisma VenueInclude limit
     orderBy: { createdAt: "desc" },
   });
 };
@@ -84,8 +89,9 @@ export const getVenueById = async (venueId: string, caller: CallerContext) => {
     where: { id: venueId, tenantId: caller.tenantId },
     include: {
       images: true,
+      facilities: true,
       _count: { select: { bookings: true } },
-    },
+    } as any,
   });
 
   if (!venue) throw new AppError("Event space not found", 404);
@@ -105,7 +111,7 @@ export const getVenueById = async (venueId: string, caller: CallerContext) => {
 export const createVenue = async (data: CreateVenueInput) => {
   const {
     name, location, capacity, price, tenantId,
-    phone, description, city, state, pincode, email, isActive, assignedStaffIds,
+    phone, description, city, state, pincode, email, isActive, assignedStaffIds, eventTypes, facilities
   } = data;
   
   if (!name?.trim()) throw new AppError("Venue name is required", 400);
@@ -159,8 +165,12 @@ export const createVenue = async (data: CreateVenueInput) => {
       name, location, capacity, price, tenantId,
       phone, description, city, state, pincode, email, isActive,
       assignedStaffIds: assignedStaffIds ? Array.from(new Set(assignedStaffIds)) : [],
-    },
-    include: { images: true },
+      eventTypes: eventTypes || [],
+      facilities: facilities ? {
+        create: facilities.map((f: { name: string, cost: number }) => ({ name: f.name, cost: f.cost }))
+      } : undefined
+    } as any,
+    include: { images: true, facilities: true } as any,
   });
 };
 
@@ -171,7 +181,7 @@ export const updateVenue = async (
   tenantId: string,
   data: UpdateVenueInput
 ) => {
-  const { assignedStaffIds, ...restData } = data;
+  const { assignedStaffIds, facilities, ...restData } = data;
 
   const existing = await prisma.venue.findFirst({ where: { id: venueId, tenantId } });
   if (!existing) throw new AppError("Event space not found", 404);
@@ -200,8 +210,14 @@ export const updateVenue = async (
     data: {
       ...restData,
       ...(assignedStaffIds ? { assignedStaffIds: Array.from(new Set(assignedStaffIds)) } : {}),
+      ...(facilities !== undefined ? {
+        facilities: {
+          deleteMany: {},
+          create: facilities.map(f => ({ name: f.name, cost: f.cost }))
+        }
+      } : {})
     },
-    include: { images: true },
+    include: { images: true, facilities: true } as any,
   });
 };
 
@@ -240,6 +256,8 @@ export const updateVenueForStaff = async (
     pincode,
     email,
     isActive,
+    eventTypes,
+    facilities
   } = data;
 
   const updateData: UpdateVenueInput = {
@@ -253,7 +271,8 @@ export const updateVenueForStaff = async (
     ...(pincode !== undefined ? { pincode } : {}),
     ...(email !== undefined ? { email } : {}),
     ...(isActive !== undefined ? { isActive } : {}),
-  };
+    ...(eventTypes !== undefined ? { eventTypes } : {}),
+  } as any;
 
   if (Object.keys(updateData).length === 0) {
     throw new AppError("No valid fields to update", 400);
@@ -274,10 +293,21 @@ export const updateVenueForStaff = async (
     throw new AppError("Capacity must be greater than 0", 400);
   }
 
+  // Cast the updateData to Prisma.VenueUpdateInput to avoid TS errors
+  const prismaUpdateData = updateData as any;
+
   return prisma.venue.update({
     where: { id: venueId },
-    data: updateData,
-    include: { images: true },
+    data: {
+      ...prismaUpdateData,
+      ...(facilities !== undefined ? {
+        facilities: {
+          deleteMany: {},
+          create: facilities.map((f: { name: string, cost: number }) => ({ name: f.name, cost: f.cost }))
+        }
+      } : {})
+    },
+    include: { images: true, facilities: true } as any,
   });
 };
 

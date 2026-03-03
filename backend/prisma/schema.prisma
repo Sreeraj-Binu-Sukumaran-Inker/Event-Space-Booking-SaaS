@@ -82,6 +82,8 @@ model Venue {
   tenant           Tenant       @relation(fields: [tenantId], references: [id])
   images           VenueImage[]
   bookings         Booking[]
+  facilities       VenueFacility[]
+  eventTypes       String[]     @default([])
   phone            String?
   description      String?
   city             String?
@@ -105,6 +107,16 @@ model VenueImage {
   isFeatured  Boolean @default(false)
   createdById String?
   createdBy   User?   @relation("ImageUploader", fields: [createdById], references: [id])
+
+  @@index([venueId])
+}
+
+model VenueFacility {
+  id      String @id @default(uuid())
+  name    String
+  cost    Float
+  venueId String
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   @@index([venueId])
 }
