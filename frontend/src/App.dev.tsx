@@ -19,7 +19,7 @@ import EventSpaceManagement from "./pages/tenants/EventSpaceManagement";
 import BookingsPage from "./pages/tenants/BookingsPage";
 import StaffPage from "./pages/tenants/StaffPage";
 import TenantSettingsPage from "./pages/tenants/TenantSettingsPage";
-import LandingLayout from "./layouts/Landing/LandingLayout";
+import LandingLayout from "./layouts/Landing/ProLayout";
 
 /* Optional fallback pages */
 const Unauthorized = () => <div>Unauthorized Access</div>;
