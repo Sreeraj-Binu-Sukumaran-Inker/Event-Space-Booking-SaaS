@@ -15,6 +15,8 @@ export interface EventSpaceFormData {
   email: string;
   isActive: boolean;
   assignedStaffIds: string[];
+  eventTypes: string[];
+  facilities: { id?: string; name: string; cost: string }[];
   newImages: File[];
   removeImageIds: string[];
 }
@@ -46,6 +48,8 @@ const EMPTY_FORM: EventSpaceFormData = {
   email: "",
   isActive: true,
   assignedStaffIds: [],
+  eventTypes: [],
+  facilities: [],
   newImages: [],
   removeImageIds: [],
 };
@@ -108,13 +112,14 @@ export default function CreateEventSpaceModal({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const [existingImages, setExistingImages] = useState<VenueImage[]>([]);
+  const [eventTypesStr, setEventTypesStr] = useState("");
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       requestAnimationFrame(() => setVisible(true));
       document.body.style.overflow = "hidden";
-
+      console.log(initialData);
       if (initialData && isEditMode) {
         setForm({
           name: initialData.name ?? "",
@@ -129,13 +134,17 @@ export default function CreateEventSpaceModal({
           email: initialData.email ?? "",
           isActive: initialData.isActive ?? true,
           assignedStaffIds: initialData.assignedStaffIds ?? [],
+          eventTypes: initialData.eventTypes ?? [],
+          facilities: initialData.facilities?.map(f => ({ ...f, cost: String(f.cost) })) ?? [],
           newImages: [],
           removeImageIds: [],
         });
         setExistingImages(initialData.images ?? []);
+        setEventTypesStr(initialData.eventTypes?.join(", ") ?? "");
       } else {
         setForm(EMPTY_FORM);
         setExistingImages([]);
+        setEventTypesStr("");
       }
       setErrors({});
     } else {
@@ -221,6 +230,29 @@ export default function CreateEventSpaceModal({
     });
   };
 
+  const handleEventTypesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEventTypesStr(e.target.value);
+  };
+
+  const addFacility = () => {
+    setForm(p => ({ ...p, facilities: [...p.facilities, { name: "", cost: "0" }] }));
+  };
+
+  const updateFacility = (index: number, key: 'name' | 'cost', value: string) => {
+    setForm(p => {
+      const newFacilities = [...p.facilities];
+      newFacilities[index] = { ...newFacilities[index], [key]: value };
+      return { ...p, facilities: newFacilities };
+    });
+  };
+
+  const removeFacility = (index: number) => {
+    setForm(p => ({
+      ...p,
+      facilities: p.facilities.filter((_, i) => i !== index)
+    }));
+  };
+
   const validate = (): boolean => {
     const next: FieldErrors = {};
     if (!form.name.trim()) next.name = "Event space name is required.";
@@ -251,7 +283,14 @@ export default function CreateEventSpaceModal({
     if (!validate()) return;
     setLoading(true);
     try {
-      await onSubmit(form);
+      const items = eventTypesStr.split(',').map(s => s.trim()).filter(Boolean);
+      // transform facilities cost to number before submit
+      const submissionData = {
+        ...form,
+        eventTypes: items,
+        facilities: form.facilities.map(f => ({ ...f, cost: Number(f.cost) || 0 }))
+      } as any;
+      await onSubmit(submissionData);
       handleClose();
     } finally {
       setLoading(false);
@@ -260,6 +299,7 @@ export default function CreateEventSpaceModal({
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
+    setEventTypesStr("");
     setErrors({});
     onClose();
   };
@@ -450,6 +490,17 @@ export default function CreateEventSpaceModal({
                     className={`${inputBase} ${inputNormal}`}
                   />
                 </div>
+
+                <div>
+                  <Label>Supported Event Types (comma-separated)</Label>
+                  <input
+                    type="text"
+                    value={eventTypesStr}
+                    onChange={handleEventTypesChange}
+                    placeholder="e.g. Wedding, Corporate Event, Birthday"
+                    className={`${inputBase} ${inputNormal}`}
+                  />
+                </div>
               </div>
             </div>
 
@@ -484,6 +535,56 @@ export default function CreateEventSpaceModal({
                   <ErrorMsg msg={errors.assignedStaffIds} />
                 </div>
               )}
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <Label>Facilities & Amenities</Label>
+                  <button 
+                    type="button" 
+                    onClick={addFacility}
+                    className="text-sm font-medium hover:underline px-2 py-1 rounded"
+                    style={{ color: GOLD }}
+                  >
+                    + Add Facility
+                  </button>
+                </div>
+                {form.facilities.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">No facilities added yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {form.facilities.map((fac, idx) => (
+                      <div key={idx} className="flex gap-3 items-start">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={fac.name}
+                            onChange={(e) => updateFacility(idx, 'name', e.target.value)}
+                            placeholder="Facility name (e.g. Chairs)"
+                            className={`${inputBase} ${inputNormal} py-2`}
+                          />
+                        </div>
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            min="0"
+                            value={fac.cost}
+                            onChange={(e) => updateFacility(idx, 'cost', e.target.value)}
+                            placeholder="Additional Cost"
+                            className={`${inputBase} ${inputNormal} py-2`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFacility(idx)}
+                          className="pt-2 text-red-400 hover:text-red-600 font-bold px-1"
+                        >
+                          <XIcon />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <Label required>Event Space Images</Label>

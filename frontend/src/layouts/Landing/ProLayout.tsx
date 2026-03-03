@@ -299,7 +299,7 @@ function VenueCarousel({
 }
 
 /* ─── Main ──────────────────────────────────────────────────── */
-export default function LandingLayout() {
+export default function PremiumLayout() {
   const [selectedVenue, setSelectedVenue] = useState<LandingVenue>(venues[0]);
   const [heroLoaded, setHeroLoaded] = useState(false);
   const [animKey, setAnimKey] = useState(0);

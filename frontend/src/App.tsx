@@ -22,7 +22,7 @@ import StaffPage from "./pages/tenants/StaffPage";
 import EventSpaceImagesPage from "./pages/tenants/EventSpaceImagesPage";
 import TenantSettingsPage from "./pages/tenants/TenantSettingsPage";
 import StaffDashboard from "./pages/staff/StaffDashboard";
-import LandingLayout from "./layouts/Landing/LandingLayout";
+import LandingLayout from "./layouts/Landing/ProLayout";
 const Unauthorized = () => <div>Unauthorized Access</div>;
 /* Optional fallback pages */
 

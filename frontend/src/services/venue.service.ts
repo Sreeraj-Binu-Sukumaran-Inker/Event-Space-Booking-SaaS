@@ -33,6 +33,8 @@ export interface Venue {
   isActive: boolean;
   tenantId: string;
   assignedStaffIds?: string[];
+  eventTypes?: string[];
+  facilities?: { id?: string; name: string; cost: number }[];
   createdAt: string;
   images: VenueImage[];
   _count?: {
@@ -53,6 +55,8 @@ export type CreateVenuePayload = {
   email?: string;
   isActive?: boolean;
   assignedStaffIds?: string[];
+  eventTypes?: string[];
+  facilities?: { id?: string; name: string; cost: number }[];
 };
 
 export type UpdateVenuePayload = Partial<CreateVenuePayload>;

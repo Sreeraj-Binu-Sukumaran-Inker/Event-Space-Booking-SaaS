@@ -322,6 +322,8 @@ export default function EventSpaceManagement() {
     email: string;
     isActive: boolean;
     assignedStaffIds: string[];
+    eventTypes: string[];
+    facilities: { id?: string; name: string; cost: string }[];
     newImages: File[];
     removeImageIds: string[];
   }) => {
@@ -330,14 +332,16 @@ export default function EventSpaceManagement() {
       location: formData.address,
       capacity: Number(formData.capacity),
       price: Number(formData.price),
-      phone: formData.phone || undefined,
-      description: formData.description || undefined,
-      city: formData.city || undefined,
-      state: formData.state || undefined,
-      pincode: formData.pincode || undefined,
-      email: formData.email || undefined,
+      phone: formData.phone,
+      description: formData.description,
+      city: formData.city,
+      state: formData.state,
+      pincode: formData.pincode,
+      email: formData.email,
       isActive: formData.isActive,
       assignedStaffIds: formData.assignedStaffIds,
+      eventTypes: formData.eventTypes,
+      facilities: formData.facilities.map(f => ({ name: f.name, cost: Number(f.cost) || 0 })),
     };
 
     try {
@@ -347,13 +351,15 @@ export default function EventSpaceManagement() {
             location: formData.address,
             capacity: Number(formData.capacity),
             price: Number(formData.price),
-            phone: formData.phone || undefined,
-            description: formData.description || undefined,
-            city: formData.city || undefined,
-            state: formData.state || undefined,
-            pincode: formData.pincode || undefined,
-            email: formData.email || undefined,
+            phone: formData.phone,
+            description: formData.description,
+            city: formData.city,
+            state: formData.state,
+            pincode: formData.pincode,
+            email: formData.email,
             isActive: formData.isActive,
+            eventTypes: formData.eventTypes,
+            facilities: formData.facilities.map(f => ({ name: f.name, cost: Number(f.cost) || 0 })),
           });
           for (const imageId of formData.removeImageIds) {
             await deleteVenueImage(editingSpace.id, imageId);
