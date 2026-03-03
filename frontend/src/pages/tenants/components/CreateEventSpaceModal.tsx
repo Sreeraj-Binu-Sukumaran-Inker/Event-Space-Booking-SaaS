@@ -236,9 +236,6 @@ export default function CreateEventSpaceModal({
     if (form.phone && !/^\d{10}$/.test(form.phone.replace(/\s/g, ""))) {
       next.phone = "Enter a valid 10-digit number.";
     }
-    if (!isStaff && form.assignedStaffIds.length === 0) {
-      next.assignedStaffIds = "Select at least one staff member.";
-    }
     if (totalImageCount < 3) {
       next.newImages = "At least 3 images are required.";
     }
@@ -471,7 +468,7 @@ export default function CreateEventSpaceModal({
 
               {!isStaff && (
                 <div>
-                  <Label required>Assign Staff</Label>
+                  <Label>Assign Staff</Label>
                   <select
                     value={form.assignedStaffIds[0] ?? ""}
                     onChange={setField("assignedStaffIds")}

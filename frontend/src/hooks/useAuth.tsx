@@ -5,7 +5,7 @@ import {
   useCallback,
 } from "react";
 import type { ReactNode } from "react";
-import { setAuthToken } from "../services/api";
+import { setAuthFailureHandler, setAuthToken } from "../services/api";
 import { authService } from "../services/auth.service";
 import { useEffect } from "react";
 
@@ -34,6 +34,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [token, setToken] = useState<string | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
+
+    useEffect(() => {
+      setAuthFailureHandler(() => {
+        setAuthToken(null);
+        setToken(null);
+        setUser(null);
+      });
+
+      return () => {
+        setAuthFailureHandler(null);
+      };
+    }, []);
 
     useEffect(() => {
       const restoreSession = async () => {

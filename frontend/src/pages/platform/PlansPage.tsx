@@ -43,13 +43,7 @@ function CheckCircleIcon() {
     </svg>
   );
 }
-function UsersIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m6-4a4 4 0 11-8 0 4 4 0 018 0zm6 4a2 2 0 100-4 2 2 0 000 4zM3 16a2 2 0 100-4 2 2 0 000 4z" />
-    </svg>
-  );
-}
+
 function BuildingIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -106,9 +100,8 @@ function PlanCard({ plan, index, onEdit, onToggle, onDelete }: {
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           {[
-            { icon: <UsersIcon />, label: "Tenants", value: plan.subscriberCount },
             { icon: <BuildingIcon />, label: "Spaces", value: plan.eventSpaceLimit },
             { icon: <StaffIcon />, label: "Staff", value: plan.staffLimit },
           ].map(({ icon, label, value }) => (
@@ -163,6 +156,7 @@ export default function PlansPage() {
     try {
       setLoading(true); setError(null);
       const data = await getPlans();
+      console.log(data)
       setPlans(data);
     } catch { setError("Failed to load plans."); }
     finally { setLoading(false); }
@@ -277,8 +271,8 @@ interface PlanModalProps {
 function PlanModal({ initialData, onClose, onSave }: PlanModalProps) {
   const [form, setForm] = useState<CreatePlanPayload>(
     initialData
-      ? { name: initialData.name, price: initialData.price, tenantLimit: initialData.tenantLimit, eventSpaceLimit: initialData.eventSpaceLimit, staffLimit: initialData.staffLimit, features: initialData.features, status: initialData.status }
-      : { name: "", price: 0, tenantLimit: 0, eventSpaceLimit: 0, staffLimit: 0, features: [], status: "ACTIVE" }
+      ? { name: initialData.name, price: initialData.price, tenantLimit: 1, eventSpaceLimit: initialData.eventSpaceLimit, staffLimit: initialData.staffLimit, features: initialData.features, status: initialData.status }
+      : { name: "", price: 0, tenantLimit: 1, eventSpaceLimit: 0, staffLimit: 0, features: [], status: "ACTIVE" }
   );
   const [featureInput, setFeatureInput] = useState("");
 
@@ -319,23 +313,30 @@ function PlanModal({ initialData, onClose, onSave }: PlanModalProps) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Monthly Price (₹)</label>
-              <input type="number" value={form.price === 0 ? "" : form.price} onChange={(e) => setForm({ ...form, price: e.target.value === "" ? 0 : Number(e.target.value) })} placeholder="0 for free plans"
+              <input type="text" inputMode="numeric" value={form.price === 0 ? "" : form.price} 
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setForm({ ...form, price: val === "" ? 0 : Number(val) });
+                }} 
+                placeholder="0 for free plans"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all" />
             </div>
           </div>
 
           <div className="space-y-4 pt-2 border-t border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Usage Limits</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { key: "tenantLimit", label: "Tenant Limit", hint: "Max vendors" },
                 { key: "eventSpaceLimit", label: "Event Spaces", hint: "Per tenant" },
                 { key: "staffLimit", label: "Staff Limit", hint: "Per tenant" },
               ].map(({ key, label, hint }) => (
                 <div key={key}>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">{label}</label>
-                  <input type="number" value={(form as any)[key]}
-                    onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                  <input type="text" inputMode="numeric" value={(form as any)[key] === 0 ? "" : (form as any)[key]} placeholder="0"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setForm({ ...form, [key]: val === "" ? 0 : Number(val) });
+                    }}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all" />
                   <p className="text-xs text-gray-400 mt-1">{hint}</p>
                 </div>

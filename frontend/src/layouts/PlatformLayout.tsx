@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import NotificationDropdown from "../components/NotificationDropdown";
 
 interface NavItem {
   label: string;
@@ -194,7 +195,9 @@ export default function PlatformLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <NotificationDropdown />
+            <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center">
                 <span className="text-xs font-semibold text-gray-600">

@@ -3,9 +3,12 @@ import api from "./api";
 export interface CreateTenantPayload {
   name: string;
   planId: string;
-  adminId: string;
+  adminId?: string; // made optional as modal doesn't send it, might be appended later
   email?: string;
   phone?: string;
+  adminName?: string;
+  adminEmail?: string;
+  adminPassword?: string;
 }
 
 

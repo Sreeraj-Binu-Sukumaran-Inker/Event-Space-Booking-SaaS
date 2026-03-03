@@ -192,7 +192,7 @@ export default function StaffPage() {
                     {staff.phone && (
                       <p className="text-xs text-gray-400 mt-0.5">{staff.phone}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-0.5">{staff.id}</p>
+                    
                   </div>
                 </div>
 

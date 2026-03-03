@@ -101,7 +101,7 @@ export const getPlans = async (): Promise<PlanResponse[]> => {
       },
     },
   });
-   console.log("Plans with count:", JSON.stringify(plans.map(p => ({ name: p.name, count: p._count.tenants }))));
+  console.log(plans)
   return plans.map((plan) => formatPlan(plan, plan._count.tenants));
 };
 

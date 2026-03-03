@@ -19,9 +19,11 @@ interface CreateTenantPayload {
   name: string;
   email?: string;
   phone?: string;
-  password?: string;
   planId: string;
   status: "ACTIVE" | "SUSPENDED";
+  adminName?: string;
+  adminEmail?: string;
+  adminPassword?: string;
 }
 
 interface Props {
@@ -35,6 +37,9 @@ interface Props {
 interface Plan {
   id: string;
   name: string;
+  staffLimit :number ;  
+  eventSpaceLimit :number ;  
+  price: number;
 }
 
 /* ===========================
@@ -73,16 +78,22 @@ export default function CreateTenantModal({
     name: "",
     email: "",
     phone: "",
-    password: "",
-    confirmPassword: "",
     planId: "",
     status: "ACTIVE" as "ACTIVE" | "SUSPENDED",
   });
 
+  const [admin, setAdmin] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    showPassword: false,
+    showConfirmPassword: false,
+  });
+
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [step, setStep] = useState<number>(1);
 
   /* ===========================
      EFFECTS
@@ -98,26 +109,36 @@ export default function CreateTenantModal({
         name: tenant.name ?? "",
         email: tenant.email ?? "",
         phone: tenant.phone ?? "",
-        password: "",
-        confirmPassword: "",
         planId: tenant.planId ?? "",
         status: tenant.status ?? "ACTIVE",
       });
+      setAdmin({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        showPassword: false,
+        showConfirmPassword: false,
+      });
+      setStep(1);
     } else {
       setForm({
         name: "",
         email: "",
         phone: "",
-        password: "",
-        confirmPassword: "",
         planId: "",
         status: "ACTIVE",
       });
+      setAdmin({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        showPassword: false,
+        showConfirmPassword: false,
+      });
+      setStep(1);
     }
-
-    // Reset visibility on modal open
-    setShowPassword(false);
-    setShowConfirmPassword(false);
   }, [isOpen, tenant, isEditMode]);
 
   if (!isOpen) return null;
@@ -126,21 +147,44 @@ export default function CreateTenantModal({
      HANDLERS
   ============================ */
 
+  const handleNextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEditMode) {
+      return handleSubmit(e);
+    }
+    if (step === 1) {
+      if (form.planId) setStep(2);
+      return;
+    }
+    if (step === 2) {
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
+      if (admin.password !== admin.confirmPassword) {
+        return;
+      }
+      await handleSubmit(e);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isEditMode) {
-      if (!form.password) return;
-      if (form.password !== form.confirmPassword) return;
+      if (!admin.name || !admin.email || !admin.password) return;
+      if (admin.password !== admin.confirmPassword) {
+         return;
+      }
     }
 
     const payload: CreateTenantPayload = {
       name: form.name,
       email: form.email,
       phone: form.phone,
-      password: form.password,
       planId: form.planId,
       status: form.status,
+      ...(isEditMode ? {} : { adminName: admin.name, adminEmail: admin.email, adminPassword: admin.password }),
     };
 
     setLoading(true);
@@ -161,12 +205,55 @@ export default function CreateTenantModal({
       <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
 
         <h2 className="text-lg font-semibold">
-          {isEditMode ? "Edit Tenant" : "Create Tenant"}
+          {isEditMode 
+            ? "Edit Tenant" 
+            : step === 1 
+              ? "Step 1: Select Plan" 
+              : step === 2 
+                ? "Step 2: Tenant Details" 
+                : `Step 3: Admin Details`}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleNextSubmit} className="space-y-4">
 
-          {/* Tenant Name */}
+          {/* Step 1: Select Plan (Create Mode) */}
+          {!isEditMode && step === 1 && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Choose a Subscription Plan
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      onClick={() => setForm({ ...form, planId: plan.id })}
+                      className={`cursor-pointer border rounded-xl p-4 transition-all ${
+                        form.planId === plan.id
+                          ? "border-gray-900 bg-gray-50 ring-1 ring-gray-900"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-900">{plan.name} </div>
+                      <p className="text-sm text-gray-500"> Price : {plan.price} / month</p>
+                      <p className="text-sm text-gray-500"> Event Space Limit : {plan.eventSpaceLimit} </p>
+                      <p className="text-sm text-gray-500"> Staff Limit : {plan.staffLimit} </p>
+                    </div>
+                  ))}
+                  {plans.length === 0 && (
+                     <div className="text-sm text-gray-500 py-4 text-center border border-dashed rounded-xl">
+                       No plans available. Please create a plan first.
+                     </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 2: Details (or Edit Mode) */}
+          {(isEditMode || step === 2) && (
+            <>
+              {/* Tenant Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tenant Name
@@ -205,86 +292,125 @@ export default function CreateTenantModal({
               className="w-full border px-3 py-2 rounded-lg"
             />
           </div>
-
-          {/* Password - Create Mode Only */}
-          {!isEditMode && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={form.password}
-                    onChange={(e) =>
-                      setForm({ ...form, password: e.target.value })
-                    }
-                    className="w-full border px-3 py-2 rounded-lg pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={form.confirmPassword}
-                    onChange={(e) =>
-                      setForm({ ...form, confirmPassword: e.target.value })
-                    }
-                    className="w-full border px-3 py-2 rounded-lg pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-              </div>
             </>
           )}
 
-          {/* Plan */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subscription Plan
-            </label>
-            <select
-              value={form.planId}
-              onChange={(e) => setForm({ ...form, planId: e.target.value })}
-              className="w-full border px-3 py-2 rounded-lg"
-              required
-            >
-              <option value="">Select Plan</option>
-              {plans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Step 3: Admin Details (Create Mode Only) */}
+          {!isEditMode && step === 3 && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Name
+                  </label>
+                  <input
+                    type="text"
+                    value={admin.name}
+                    onChange={(e) => setAdmin({ ...admin, name: e.target.value })}
+                    className="w-full border px-3 py-2 rounded-lg bg-white"
+                    required
+                  />
+                </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" type="button" onClick={onClose}>
-              Cancel
-            </Button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Email
+                  </label>
+                  <input
+                    type="email"
+                    value={admin.email}
+                    onChange={(e) => setAdmin({ ...admin, email: e.target.value })}
+                    className="w-full border px-3 py-2 rounded-lg bg-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={admin.showPassword ? "text" : "password"}
+                      value={admin.password}
+                      onChange={(e) => setAdmin({ ...admin, password: e.target.value })}
+                      className="w-full border px-3 py-2 rounded-lg pr-10 bg-white"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAdmin({ ...admin, showPassword: !admin.showPassword })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {admin.showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={admin.showConfirmPassword ? "text" : "password"}
+                      value={admin.confirmPassword}
+                      onChange={(e) => setAdmin({ ...admin, confirmPassword: e.target.value })}
+                      className="w-full border px-3 py-2 rounded-lg pr-10 bg-white"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAdmin({ ...admin, showConfirmPassword: !admin.showConfirmPassword })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {admin.showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+                  {admin.password && admin.confirmPassword && admin.password !== admin.confirmPassword && (
+                    <p className="text-red-500 text-xs mt-1">Passwords do not match.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Plan (Edit Mode Only, as Create Mode selects it in Step 1) */}
+          {isEditMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Subscription Plan
+              </label>
+              <select
+                value={form.planId}
+                onChange={(e) => setForm({ ...form, planId: e.target.value })}
+                className="w-full border px-3 py-2 rounded-lg"
+                required
+              >
+                <option value="">Select Plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4">
+            {isEditMode ? (
+              <Button variant="outline" type="button" onClick={onClose}>
+                Cancel
+              </Button>
+            ) : (
+              <Button variant="outline" type="button" onClick={() => step === 1 ? onClose() : setStep(step - 1)}>
+                {step === 1 ? "Cancel" : "Back"}
+              </Button>
+            )}
             <Button type="submit" loading={loading}>
-              {isEditMode ? "Update Tenant" : "Create Tenant"}
+              {isEditMode ? "Update Tenant" : step === 3 ? "Create Tenant" : "Next"}
             </Button>
           </div>
 

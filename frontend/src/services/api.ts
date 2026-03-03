@@ -2,9 +2,14 @@ import axios from "axios";
 
 
 let authToken: string | null = null;
+let authFailureHandler: (() => void) | null = null;
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
+};
+
+export const setAuthFailureHandler = (handler: (() => void) | null) => {
+  authFailureHandler = handler;
 };
 
 const api = axios.create({
@@ -20,6 +25,9 @@ const refreshClient = axios.create({
 
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
+
+const isAuthEndpoint = (url?: string) =>
+  !!url && /\/auth\/(login|register|refresh|logout)(\?|$)/.test(url);
 
 const refreshAccessToken = async () => {
   if (isRefreshing && refreshPromise) return refreshPromise;
@@ -51,15 +59,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401 && !error.config?._retry) {
-      error.config._retry = true;
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthEndpoint(originalRequest.url)
+    ) {
+      originalRequest._retry = true;
       try {
         const newToken = await refreshAccessToken();
-        error.config.headers = error.config.headers || {};
-        error.config.headers.Authorization = `Bearer ${newToken}`;
-        return api.request(error.config);
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api.request(originalRequest);
       } catch {
-        // optional: force reload or redirect later
+        setAuthToken(null);
+        authFailureHandler?.();
         console.warn("Unauthorized - token may be invalid");
       }
     }

@@ -2,13 +2,21 @@ import { prisma } from "../prisma/client";
 import { AppError } from "../utils/AppError";
 import bcrypt from "bcrypt";
 
+interface AdminInput {
+  name: string;
+  email: string;
+  password: string;
+}
+
 interface CreateTenantInput {
   name: string;
-  email: string;       // ✅ make required
+  email?: string; // Optional main tenant email
   phone?: string;
-  password: string;
   planId: string;
-  adminId: string;
+  adminId: string; // The ID of the SUPER_ADMIN creating this
+  adminName: string;
+  adminEmail: string;
+  adminPassword: string;
 }
 
 interface GetTenantsQuery {
@@ -30,19 +38,11 @@ export const getTenantById = async (id: string) => {
 };
 
 export const createTenant = async (data: CreateTenantInput) => {
-  const { name, email, phone, password, planId, adminId } = data;
+  const { name, email, phone, planId, adminId, adminName, adminEmail, adminPassword } = data;
 
   // ✅ Basic validations
   if (!name?.trim()) {
     throw new AppError("Tenant name is required", 400);
-  }
-
-  if (!email?.trim()) {
-    throw new AppError("Admin email is required", 400);
-  }
-
-  if (!password?.trim() || password.length < 6) {
-    throw new AppError("Password must be at least 6 characters", 400);
   }
 
   if (!planId?.trim()) {
@@ -51,6 +51,18 @@ export const createTenant = async (data: CreateTenantInput) => {
 
   if (!adminId?.trim()) {
     throw new AppError("adminId is required", 400);
+  }
+
+  if (!adminName?.trim()) {
+    throw new AppError("Admin name is required", 400);
+  }
+
+  if (!adminEmail?.trim()) {
+    throw new AppError("Admin email is required", 400);
+  }
+
+  if (!adminPassword?.trim() || adminPassword.length < 6) {
+    throw new AppError("Admin password must be at least 6 characters", 400);
   }
 
   // ✅ Check plan exists
@@ -77,44 +89,44 @@ export const createTenant = async (data: CreateTenantInput) => {
 
   // ✅ Check if email already exists
   const existingUser = await prisma.user.findUnique({
-    where: { email },
+    where: { email: adminEmail },
   });
 
   if (existingUser) {
-    throw new AppError("Email already in use", 409);
+    throw new AppError("Email is already in use by another user.", 409);
   }
 
   // ✅ Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-  // ✅ Use transaction (CRITICAL)
+  // ✅ Use transaction
   const result = await prisma.$transaction(async (tx) => {
-  // 1️⃣ Create tenant (include plan so frontend gets full data)
-  const tenant = await tx.tenant.create({
-    data: {
-      name,
-      email,
-      phone,
-      planId,
-      createdById: adminId,
-    },
-    include: {
-      plan: true,
-    },
-  });
+    // 1️⃣ Create tenant
+    const tenant = await tx.tenant.create({
+      data: {
+        name,
+        email,
+        phone,
+        planId,
+        createdById: adminId,
+      },
+      include: {
+        plan: true,
+      },
+    });
 
-  // 2️⃣ Create tenant admin user
-  await tx.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-      role: "TENANT_ADMIN",
-      tenantId: tenant.id,
-    },
-  });
+    // 2️⃣ Create single tenant admin user
+    await tx.user.create({
+      data: {
+        name: adminName,
+        email: adminEmail,
+        password: hashedPassword,
+        role: "TENANT_ADMIN",
+        tenantId: tenant.id,
+      },
+    });
 
-  return tenant; // 🔥 IMPORTANT — return only tenant
+    return tenant; // 🔥 IMPORTANT — return only tenant
   });
 
   return result;

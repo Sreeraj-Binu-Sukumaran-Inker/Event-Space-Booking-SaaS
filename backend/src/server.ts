@@ -10,6 +10,7 @@ import { globalErrorHandler } from "./middleware/globalError.middleware";
 import venueRoutes from "./routes/venue.routes";
 import bookingRoutes from "./routes/booking.routes";
 import staffRoutes from "./routes/staff.route";
+import notificationRoutes from "./routes/notification.routes";
 const app = express();
 app.use(
   cors({
@@ -44,6 +45,9 @@ app.use("/api/bookings", bookingRoutes);
 
 // Staff Routes
 app.use("/api/staff", staffRoutes);
+
+// Notification Routes
+app.use("/api/notifications", notificationRoutes);
 
 app.use(globalErrorHandler);
 
