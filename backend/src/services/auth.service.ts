@@ -22,6 +22,7 @@ export class AuthService {
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
+      include: { tenant: true }
     });
 
     if (existingUser) {
@@ -93,6 +94,7 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { email },
+      include: { tenant: true }
     });
 
     if (!user) {

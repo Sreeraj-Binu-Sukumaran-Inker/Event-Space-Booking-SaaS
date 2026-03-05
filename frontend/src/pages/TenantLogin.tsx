@@ -61,6 +61,24 @@ export default function TenantLogin() {
     if (pendingNavigation.current && user) {
       pendingNavigation.current = false;
       
+      const serverDomain = user.tenantDomain;
+      const currentHost = window.location.hostname;
+      
+      // If logging in from the wrong sub-domain, force a hard cross-domain redirect back to their real domain
+      // using http:// (or https:// in prod)
+      if (serverDomain && serverDomain !== currentHost) {
+        const protocol = window.location.protocol;
+        const port = window.location.port ? `:${window.location.port}` : '';
+        
+        if (userRole.current === "TENANT_ADMIN") {
+          window.location.href = `${protocol}//${serverDomain}${port}${from}`;
+        } else if (userRole.current === "STAFF") {
+          window.location.href = `${protocol}//${serverDomain}${port}/staff`;
+        }
+        return;
+      }
+
+      // Normal same-domain navigation
       if (userRole.current === "TENANT_ADMIN") {
         navigate(from, { replace: true });
       } else if (userRole.current === "STAFF") {

@@ -56,6 +56,7 @@ export class AuthController {
         role: user.role,
         tenantId: user.tenantId,
         email: user.email,
+        tenantDomain: (user as any).tenant?.customDomain || null,
       },
     });
   }

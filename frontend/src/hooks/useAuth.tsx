@@ -17,6 +17,7 @@ export interface User {
   email: string;
   role: UserRole;
   tenantId?: string;
+  tenantDomain?: string;
 }
 
 interface AuthContextType {

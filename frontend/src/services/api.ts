@@ -12,14 +12,25 @@ export const setAuthFailureHandler = (handler: (() => void) | null) => {
   authFailureHandler = handler;
 };
 
+const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+  // If running locally on a custom subdomain (e.g., eventers.localhost)
+  if (hostname.endsWith(".localhost")) {
+    // Route API requests through the exact same subdomain so cookies match the host
+    return `http://${hostname}:5000/api`;
+  }
+  // Otherwise default to the environment variable
+  return import.meta.env.VITE_API_BASE_URL;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   withCredentials: true, // important for cookie-based refresh tokens
 });
 
 // Separate client to avoid interceptor recursion during refresh
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 

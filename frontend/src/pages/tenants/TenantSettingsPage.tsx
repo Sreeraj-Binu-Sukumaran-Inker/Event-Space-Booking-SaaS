@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 interface TenantSettings {
   venueName: string;
@@ -16,6 +16,9 @@ interface TenantSettings {
   cancellationPolicy: string;
   logo: File | null;
   coverImage: File | null;
+  customDomain: string;
+  activeLayout: string;
+  availableLayouts: string[];
 }
 
 const GOLD = "#d4af37";
@@ -38,6 +41,16 @@ const initialSettings: TenantSettings = {
     "Cancellations made 30+ days before the event date are eligible for a full refund. Cancellations within 30 days will incur a 50% charge. No refunds within 7 days of the event.",
   logo: null,
   coverImage: null,
+  customDomain: "",
+  activeLayout: "BASIC",
+  availableLayouts: [],
+};
+
+const toCanonicalLayout = (layout: string): string => {
+  const normalized = layout.trim().toUpperCase();
+  if (normalized === "PRO_1") return "PRO";
+  if (normalized === "PREMIUM_1") return "PREMIUM";
+  return normalized;
 };
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -184,9 +197,39 @@ function UploadBox({
   );
 }
 
+import { getMySettings, updateMySettings } from "../../services/tenant.services";
+
 export default function TenantSettingsPage() {
   const [form, setForm] = useState<TenantSettings>(initialSettings);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const data = await getMySettings();
+      const availableLayouts = (data.plan?.availableLayouts || ["BASIC"]).map(toCanonicalLayout);
+      const activeLayout = toCanonicalLayout(data.activeLayout || "BASIC");
+      setForm((prev) => ({
+        ...prev,
+        venueName: data.name || "",
+        email: data.email || "",
+        contactNumber: data.phone || "",
+        customDomain: data.customDomain || "",
+        activeLayout: availableLayouts.includes(activeLayout) ? activeLayout : availableLayouts[0] || "BASIC",
+        availableLayouts
+      }));
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to load settings.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -196,10 +239,29 @@ export default function TenantSettingsPage() {
     setSaved(false);
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      await updateMySettings({
+        name: form.venueName,
+        email: form.email,
+        phone: form.contactNumber,
+        customDomain: form.customDomain,
+        activeLayout: form.activeLayout
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to save settings.");
+    }
   };
+
+  if (loading) {
+    return <div className="p-8 text-gray-400">Loading settings...</div>;
+  }
+  
+  if (error) {
+    return <div className="p-8 text-red-500">{error}</div>;
+  }
 
   return (
     <div className="space-y-8" style={{ fontFamily: "var(--font-body)" }}>
@@ -479,7 +541,77 @@ export default function TenantSettingsPage() {
         </div>
       </div>
 
-      {/* ── SECTION 5: DANGER ZONE ── */}
+      {/* ── SECTION 5: CUSTOM DOMAIN & LAYOUT ── */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+        <SectionHeader
+          title="Custom Domain & Layout"
+          subtitle="Configure how customers view your event spaces online."
+        />
+        <div className="space-y-6">
+          <div>
+            <Label htmlFor="customDomain">Custom Domain</Label>
+            <input
+              id="customDomain"
+              name="customDomain"
+              type="text"
+              value={form.customDomain}
+              onChange={handleChange}
+              onFocus={inputFocus}
+              onBlur={inputBlur}
+              className={inputClass}
+              placeholder="e.g. bookings.yourcompany.com"
+            />
+            <p className="text-xs text-gray-400 mt-1">If left blank, customers can only book via the main platform domain.</p>
+          </div>
+
+          <div>
+            <Label htmlFor="activeLayout">Active Layout</Label>
+            {form.availableLayouts.length === 0 ? (
+              <p className="text-sm text-gray-500">No layouts assigned to your current subscription plan.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                {form.availableLayouts.map((layout) => (
+                  <label
+                    key={layout}
+                    className={`relative flex flex-col items-center justify-center p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                      form.activeLayout === layout
+                        ? "border-[#d4af37] bg-yellow-50/30 shadow-md"
+                        : "border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="activeLayout"
+                      value={layout}
+                      checked={form.activeLayout === layout}
+                      onChange={handleChange}
+                      className="sr-only"
+                    />
+                    <div className="w-16 h-16 mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 9h16M4 15h16M10 9v10M14 9v10" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 mb-1">{layout.replace("_", " ")}</span>
+                    
+                    {form.activeLayout === layout && (
+                      <div className="absolute top-3 right-3 text-[#d4af37]">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mt-2">These layouts are exclusive to your current subscription plan.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── SECTION 6: DANGER ZONE ── */}
       <div className="bg-white border border-red-200 rounded-xl shadow-sm p-6">
         <div className="flex items-start justify-between gap-6">
           <div>

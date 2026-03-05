@@ -24,67 +24,9 @@ interface LandingVenue {
   bookingStats: BookingStats;
 }
 
-/* ─── Data ──────────────────────────────────────────────────── */
-const venues: LandingVenue[] = [
-  {
-    id: "1",
-    name: "Grand Royal Hall",
-    location: "Kochi, Kerala",
-    city: "Kochi", state: "Kerala", pincode: "682001",
-    capacity: 500, price: 120000,
-    phone: "+91 484 123 4567", email: "bookings@grandroyal.com",
-    description: "Grand Royal Hall is an opulent celebration space nestled in the heart of Kochi. Adorned with crystal chandeliers, marble floors, and floor-to-ceiling drapery, this hall transforms your most cherished events into timeless memories. Our dedicated concierge team ensures every detail is handled with grace, from floral arrangements to bespoke catering.",
-    hero: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1600&q=80",
-    images: [
-      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80",
-      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80",
-      "https://images.unsplash.com/photo-1505236858219-8359eb29e329?w=800&q=80",
-      "https://images.unsplash.com/photo-1478147427282-58a87a433b13?w=800&q=80",
-    ],
-    bookingStats: { total: 120, upcoming: 5, popularEvent: "Weddings", nextAvailable: "2026-03-15" },
-  },
-  {
-    id: "2",
-    name: "Azure Sky Terrace",
-    location: "Bangalore, Karnataka",
-    city: "Bangalore", state: "Karnataka", pincode: "560001",
-    capacity: 250, price: 75000,
-    phone: "+91 80 987 6543", email: "events@azuresky.com",
-    description: "Perched atop Bangalore's skyline, Azure Sky Terrace offers an alfresco event experience like no other. With panoramic city views, ambient string lighting, and modular open-air setups, it's the perfect canvas for corporate galas, cocktail evenings, and intimate celebrations under the stars.",
-    hero: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=1600&q=80",
-    images: [
-      "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&q=80",
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80",
-      "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80",
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80",
-    ],
-    bookingStats: { total: 87, upcoming: 3, popularEvent: "Corporate Events", nextAvailable: "2026-03-08" },
-  },
-  {
-    id: "3",
-    name: "The Heritage Pavilion",
-    location: "Jaipur, Rajasthan",
-    city: "Jaipur", state: "Rajasthan", pincode: "302001",
-    capacity: 800, price: 195000,
-    phone: "+91 141 555 7890", email: "reservations@heritagepavilion.com",
-    description: "Step into royalty at The Heritage Pavilion — a restored colonial estate dating back to 1887. With intricately carved archways, royal courtyards, and lush manicured gardens, this venue offers a breathtaking backdrop for grand weddings, destination events, and cultural galas.",
-    hero: "https://images.unsplash.com/photo-1561488111-5d800fd56b8a?w=1600&q=80",
-    images: [
-      "https://images.unsplash.com/photo-1561488111-5d800fd56b8a?w=800&q=80",
-      "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=800&q=80",
-      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80",
-      "https://images.unsplash.com/photo-1578898886225-c7c894047899?w=800&q=80",
-    ],
-    bookingStats: { total: 214, upcoming: 9, popularEvent: "Destination Weddings", nextAvailable: "2026-04-02" },
-  },
-];
-
-const tenant = { name: "Verdana Spaces", logo: "❧" };
-
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 const fmtPrice = (p: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(p);
 
-/* ─── SVG helpers ────────────────────────────────────────────── */
 const Icon = ({ d, className = "w-4 h-4" }: { d: string; className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d={d} />
@@ -107,16 +49,23 @@ const ICONS = {
 function VenueCarousel({
   venues,
   selectedId,
-  onSelect,
+  onHeroChange,
+  onUserSelect,
 }: {
   venues: LandingVenue[];
   selectedId: string;
-  onSelect: (venue: LandingVenue) => void;
+  onHeroChange: (venue: LandingVenue) => void;
+  onUserSelect: (venue: LandingVenue) => void;
 }) {
   const N = venues.length;
-  const items = [...venues, ...venues, ...venues]; // triple for infinite loop
+
+  // Only triple the list when N > 2, otherwise use as-is to avoid duplication
+  const shouldLoop = N > 2;
+  const items = shouldLoop ? [...venues, ...venues, ...venues] : venues;
+
   const selectedIdx = venues.findIndex((v) => v.id === selectedId);
-  const [centerIdx, setCenterIdx] = useState(N + selectedIdx);
+  // Start in the middle copy only if looping
+  const [centerIdx, setCenterIdx] = useState(shouldLoop ? N + selectedIdx : selectedIdx);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const pausedRef = useRef(false);
@@ -141,9 +90,10 @@ function VenueCarousel({
     if (animate) setTimeout(() => { isAnimatingRef.current = false; }, 700);
   }, [STEP]);
 
-  // Scroll whenever centerIdx changes + silent teleport to middle copy
+  // Scroll whenever centerIdx changes; only do infinite-loop teleport if shouldLoop
   useEffect(() => {
     scrollToCenter(centerIdx, true);
+    if (!shouldLoop) return;
     const t = setTimeout(() => {
       let next = centerIdx;
       if (centerIdx < N) next = centerIdx + N;
@@ -151,26 +101,36 @@ function VenueCarousel({
       if (next !== centerIdx) { setCenterIdx(next); scrollToCenter(next, false); }
     }, 720);
     return () => clearTimeout(t);
-  }, [centerIdx, scrollToCenter, N]);
+  }, [centerIdx, scrollToCenter, N, shouldLoop]);
 
-  // Notify parent when center changes
+  // Auto-rotate: only update hero background
   useEffect(() => {
-    const realIdx = ((centerIdx % N) + N) % N;
+    const realIdx = shouldLoop ? ((centerIdx % N) + N) % N : centerIdx % N;
     const venue = venues[realIdx];
-    if (venue && venue.id !== selectedId) onSelect(venue);
+    if (venue && venue.id !== selectedId) onHeroChange(venue);
   }, [centerIdx]); // eslint-disable-line
 
   // Auto-advance every 3s
   useEffect(() => {
+    const maxIdx = items.length - 1;
     const id = setInterval(() => {
-      if (!pausedRef.current) setCenterIdx(p => p + 1);
+      if (!pausedRef.current) {
+        setCenterIdx(p => {
+          const next = p + 1;
+          // For non-looping (N <= 2), wrap back to 0
+          if (!shouldLoop && next > maxIdx) return 0;
+          return next;
+        });
+      }
     }, 3000);
     return () => clearInterval(id);
-  }, []);
+  }, [shouldLoop, items.length]);
 
   if (N <= 1) return null;
 
-  const realCenter = ((centerIdx % N) + N) % N;
+  const realCenter = shouldLoop
+    ? ((centerIdx % N) + N) % N
+    : centerIdx % N;
 
   return (
     <div
@@ -184,12 +144,15 @@ function VenueCarousel({
           Our Spaces
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-emerald-500/25 to-transparent" />
-        {/* Dot indicators */}
+        {/* Dot indicators — always based on real N */}
         <div className="flex items-center gap-1.5">
-          {venues.map((_, i) => (
+          {venues.map((v, i) => (
             <button
               key={i}
-              onClick={() => setCenterIdx(N + i)}
+              onClick={() => {
+                setCenterIdx(shouldLoop ? N + i : i);
+                onUserSelect(v);
+              }}
               className={`h-1.5 rounded-full border-none cursor-pointer transition-all duration-400 ${
                 i === realCenter
                   ? "w-5 bg-emerald-400"
@@ -202,12 +165,9 @@ function VenueCarousel({
 
       {/* Mask + track wrapper */}
       <div className="relative overflow-hidden">
-        {/* Left fade */}
         <div className="absolute left-0 top-0 bottom-0 w-28 bg-gradient-to-r from-[#07120d] to-transparent z-10 pointer-events-none" />
-        {/* Right fade */}
         <div className="absolute right-0 top-0 bottom-0 w-28 bg-gradient-to-l from-[#07120d] to-transparent z-10 pointer-events-none" />
 
-        {/* Sliding track */}
         <div
           ref={trackRef}
           className="flex will-change-transform select-none pb-1"
@@ -221,7 +181,14 @@ function VenueCarousel({
             return (
               <button
                 key={`${venue.id}-${i}`}
-                onClick={() => { if (!isAnimatingRef.current) setCenterIdx(i); }}
+                onClick={() => {
+                  if (isAnimatingRef.current) return;
+                  setCenterIdx(i);
+                  // Explicit click → update full page
+                  const realIdx = shouldLoop ? ((i % N) + N) % N : i % N;
+                  const clicked = venues[realIdx];
+                  if (clicked) onUserSelect(clicked);
+                }}
                 className="flex-shrink-0 border-none bg-transparent p-0 cursor-pointer outline-none text-left transition-all duration-500"
                 style={{
                   width: `${CARD_W}px`,
@@ -231,7 +198,6 @@ function VenueCarousel({
                   opacity: isCenter ? 1 : isNear ? 0.6 : 0.3,
                 }}
               >
-                {/* Thumbnail */}
                 <div
                   className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
                     isCenter
@@ -250,8 +216,6 @@ function VenueCarousel({
                         : "brightness(0.35) saturate(0.6)",
                     }}
                   />
-
-                  {/* Gradient overlay */}
                   <div
                     className="absolute inset-0 transition-all duration-400"
                     style={{
@@ -260,27 +224,19 @@ function VenueCarousel({
                         : "linear-gradient(to top, rgba(7,18,13,0.7) 0%, transparent 100%)",
                     }}
                   />
-
-                  {/* Pulse dot – active only */}
                   {isCenter && (
                     <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(59,186,116,0.9)] animate-pulse" />
                   )}
-
-                  {/* "Viewing" badge */}
                   {isCenter && (
                     <div className="absolute bottom-2 left-2 bg-emerald-500/15 border border-emerald-500/50 backdrop-blur-sm rounded-full px-2.5 py-0.5">
                       <span className="font-sans text-[0.5rem] tracking-widest uppercase text-emerald-400">Viewing</span>
                     </div>
                   )}
                 </div>
-
-                {/* Name + location */}
                 <div className="pt-2 px-0.5 text-center">
-                  <p
-                    className={`font-serif leading-tight mb-0.5 truncate transition-all duration-400 ${
-                      isCenter ? "text-emerald-400 text-[0.88rem]" : "text-emerald-800/80 text-[0.78rem]"
-                    }`}
-                  >
+                  <p className={`font-serif leading-tight mb-0.5 truncate transition-all duration-400 ${
+                    isCenter ? "text-emerald-400 text-[0.88rem]" : "text-emerald-800/80 text-[0.78rem]"
+                  }`}>
                     {venue.name}
                   </p>
                   <p className={`font-sans text-[0.57rem] tracking-wide truncate transition-colors duration-400 ${
@@ -298,22 +254,112 @@ function VenueCarousel({
   );
 }
 
-/* ─── Main ──────────────────────────────────────────────────── */
-export default function PremiumLayout() {
-  const [selectedVenue, setSelectedVenue] = useState<LandingVenue>(venues[0]);
+/* ─── Hero image layer — isolated so only it re-renders on venue change ── */
+function HeroBackground({ venue }: { venue: LandingVenue }) {
   const [heroLoaded, setHeroLoaded] = useState(false);
-  const [animKey, setAnimKey] = useState(0);
+  const [currentSrc, setCurrentSrc] = useState(venue.hero);
+  const [nextSrc, setNextSrc] = useState<string | null>(null);
+  const [fading, setFading] = useState(false);
 
-  const handleVenueSelect = useCallback((venue: LandingVenue) => {
-    if (venue.id === selectedVenue.id) return;
-    setHeroLoaded(false);
-    setSelectedVenue(venue);
-    setAnimKey(k => k + 1);
-  }, [selectedVenue.id]);
+  useEffect(() => {
+    if (venue.hero === currentSrc) return;
+    // Start crossfade: load new image behind current
+    setNextSrc(venue.hero);
+    setFading(false);
+  }, [venue.hero]); // eslint-disable-line
 
-  useEffect(() => { setHeroLoaded(false); }, [selectedVenue]);
+  return (
+    <div className="absolute inset-0">
+      {/* Current image */}
+      <img
+        src={currentSrc}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ opacity: fading ? 0 : 1, transition: "opacity 0.9s ease" }}
+      />
+      {/* Next image — fades in on top */}
+      {nextSrc && (
+        <img
+          key={nextSrc}
+          src={nextSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: heroLoaded ? 1 : 0, transition: "opacity 0.9s ease" }}
+          onLoad={() => {
+            setHeroLoaded(true);
+            // After fade completes, promote next → current
+            setTimeout(() => {
+              setCurrentSrc(nextSrc!);
+              setNextSrc(null);
+              setHeroLoaded(false);
+              setFading(false);
+            }, 950);
+          }}
+        />
+      )}
+      {/* Gradients — always on top of images */}
+      <div className="absolute inset-0"
+        style={{ background: "linear-gradient(170deg, rgba(7,18,13,0.06) 0%, rgba(7,18,13,0.5) 50%, #07120d 100%)" }} />
+      <div className="absolute inset-0"
+        style={{ background: "linear-gradient(110deg, rgba(7,18,13,0.55) 0%, transparent 55%)" }} />
+    </div>
+  );
+}
 
-  const stats = selectedVenue.bookingStats;
+/* ─── Main ──────────────────────────────────────────────────── */
+export default function ProLayout({ tenantData }: { tenantData?: any }) {
+  const realVenues: LandingVenue[] = tenantData?.venues?.length > 0 ? tenantData.venues.map((v: any) => ({
+    id: v.id,
+    name: v.name,
+    location: `${v.city}, ${v.state}`,
+    city: v.city,
+    state: v.state,
+    pincode: v.pincode || "N/A",
+    capacity: v.capacity || 0,
+    price: v.price || 0,
+    phone: tenantData.phone || "N/A",
+    email: tenantData.email || "N/A",
+    description: v.description || "Beautiful event space.",
+    hero: v.images?.[0]?.url || "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1600&q=80",
+    images: v.images?.length > 0
+      ? v.images.map((i: any) => i.url)
+      : ["https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&q=80"],
+    bookingStats: { total: 0, upcoming: 0, popularEvent: "TBD", nextAvailable: new Date().toISOString() },
+  })) : [];
+
+  // heroVenue → drives only the background image crossfade (auto-rotate + click)
+  // detailVenue → drives all page content below hero, only updates on explicit user click
+  const [heroVenue, setHeroVenue] = useState<LandingVenue | null>(realVenues[0] || null);
+  const [detailVenue, setDetailVenue] = useState<LandingVenue | null>(realVenues[0] || null);
+
+  // Auto-rotate: only swap hero background
+  const handleHeroChange = useCallback((venue: LandingVenue) => {
+    setHeroVenue(venue);
+  }, []);
+
+  // Explicit click: update hero + all page content
+  const handleUserSelect = useCallback((venue: LandingVenue) => {
+    setHeroVenue(venue);
+    setDetailVenue(venue);
+  }, []);
+
+  if (!heroVenue || !detailVenue || realVenues.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#07120d] text-[#e8f5ee] flex flex-col items-center justify-center p-8 text-center" style={{ fontFamily: "Outfit, sans-serif" }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-emerald-500/10 border border-emerald-500/20">
+          <Icon d={ICONS.calendar} className="w-8 h-8 text-emerald-400" />
+        </div>
+        <h1 className="text-3xl font-serif mb-4" style={{ fontFamily: "'DM Serif Display', serif" }}>
+          Coming Soon
+        </h1>
+        <p className="text-emerald-300/70 max-w-md">
+          There are currently no event spaces listed for {tenantData?.name || "this tenant"}. Please check back later.
+        </p>
+      </div>
+    );
+  }
+
+  const stats = detailVenue.bookingStats;
 
   return (
     <div className="min-h-screen bg-[#07120d] text-[#e8f5ee]">
@@ -328,18 +374,13 @@ export default function PremiumLayout() {
           to   { opacity: 1; transform: translateY(0); }
         }
         .fade-up { animation: fadeUp 0.65s cubic-bezier(0.16,1,0.3,1) forwards; opacity: 0; }
-
-        @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(59,186,116,0.6); }
-          50%       { box-shadow: 0 0 18px rgba(59,186,116,1), 0 0 28px rgba(59,186,116,0.35); }
-        }
       `}</style>
 
       {/* ══ NAV ════════════════════════════════════════════════════ */}
       <nav className="sticky top-0 z-40 backdrop-blur-xl bg-[#07120d]/85 border-b border-emerald-900/40 px-12 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="font-serif text-emerald-400 text-3xl leading-none">❧</span>
-          <span className="font-serif text-xl tracking-wide text-[#e8f5ee]">{tenant.name}</span>
+          <span className="font-serif text-xl tracking-wide text-[#e8f5ee]">{tenantData?.name || "Event Space"}</span>
         </div>
         <div className="flex items-center gap-10">
           {["About", "Gallery", "Availability"].map(item => (
@@ -355,56 +396,36 @@ export default function PremiumLayout() {
       </nav>
 
       {/* ══ HERO ═══════════════════════════════════════════════════ */}
+      {/* No key prop here — this section never unmounts/remounts */}
       <section className="relative min-h-[94vh] flex flex-col justify-end overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0">
-          <img
-            key={selectedVenue.id}
-            src={selectedVenue.hero}
-            alt={selectedVenue.name}
-            className="w-full h-full object-cover transition-opacity duration-[900ms]"
-            style={{ opacity: heroLoaded ? 1 : 0 }}
-            onLoad={() => setHeroLoaded(true)}
-          />
-          {!heroLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 to-[#0f2a1a]" />
-          )}
-          {/* Gradients */}
-          <div className="absolute inset-0"
-            style={{ background: "linear-gradient(170deg, rgba(7,18,13,0.06) 0%, rgba(7,18,13,0.5) 50%, #07120d 100%)" }} />
-          <div className="absolute inset-0"
-            style={{ background: "linear-gradient(110deg, rgba(7,18,13,0.55) 0%, transparent 55%)" }} />
-        </div>
+
+        {/* Isolated background — only re-renders on heroVenue change */}
+        <HeroBackground venue={heroVenue} />
 
         {/* Decorative watermark */}
         <span className="font-serif absolute top-6 right-12 text-[9rem] leading-none italic text-emerald-500/[0.04] pointer-events-none select-none">❧</span>
 
-        {/* Content */}
-        <div className="relative z-10" key={animKey}>
-          {/* Venue info block */}
+        {/* Static content — never re-mounts, text updates via selectedVenue state */}
+        <div className="relative z-10">
           <div className="px-16 pb-10 max-w-3xl">
-            {/* Tag */}
             <div className="fade-up flex items-center gap-3 mb-5 font-sans text-[0.6rem] tracking-[0.26em] uppercase text-emerald-400"
               style={{ animationDelay: "0.05s" }}>
               <span className="w-5 h-px bg-emerald-500" />
               Premium Event Venue
             </div>
 
-            {/* Venue name */}
             <h1
-              className="font-serif fade-up text-[#e8f5ee] leading-[0.97] tracking-tight mb-5"
-              style={{ fontSize: "clamp(2.8rem, 7.5vw, 6rem)", animationDelay: "0.15s" }}
+              className="font-serif text-[#e8f5ee] leading-[0.97] tracking-tight mb-5 transition-all duration-700"
+              style={{ fontSize: "clamp(2.8rem, 7.5vw, 6rem)" }}
             >
-              {selectedVenue.name}
+              {heroVenue.name}
             </h1>
 
-            {/* Meta row */}
-            <div className="fade-up flex flex-wrap gap-5 font-sans text-[0.8rem] text-emerald-300/75 mb-8"
-              style={{ animationDelay: "0.25s" }}>
+            <div className="flex flex-wrap gap-5 font-sans text-[0.8rem] text-emerald-300/75 mb-8 transition-all duration-500">
               {[
-                { icon: ICONS.location, text: selectedVenue.location },
-                { icon: ICONS.guests,   text: `Up to ${selectedVenue.capacity.toLocaleString()} guests` },
-                { icon: ICONS.price,    text: `Starting ${fmtPrice(selectedVenue.price)}` },
+                { icon: ICONS.location, text: heroVenue.location },
+                { icon: ICONS.guests,   text: `Up to ${heroVenue.capacity.toLocaleString()} guests` },
+                { icon: ICONS.price,    text: `Starting ${fmtPrice(heroVenue.price)}` },
               ].map((item, i) => (
                 <span key={i} className="flex items-center gap-1.5">
                   {i > 0 && <span className="w-px h-3.5 bg-emerald-900 mr-1" />}
@@ -414,7 +435,6 @@ export default function PremiumLayout() {
               ))}
             </div>
 
-            {/* CTA */}
             <div className="fade-up" style={{ animationDelay: "0.32s" }}>
               <button className="font-sans font-semibold text-[0.72rem] tracking-widest uppercase px-9 py-3.5 rounded-[4px] bg-gradient-to-br from-emerald-500 to-emerald-700 text-[#07120d] border-none cursor-pointer shadow-[0_4px_22px_rgba(59,186,116,0.35)] hover:shadow-[0_8px_32px_rgba(59,186,116,0.5)] hover:-translate-y-0.5 transition-all">
                 Book Now
@@ -422,57 +442,47 @@ export default function PremiumLayout() {
             </div>
           </div>
 
-          {/* Carousel strip */}
-          {venues.length > 1 && (
+          {/* Carousel strip — stable, no key prop */}
+          {realVenues.length > 1 && (
             <div
-              className="fade-up pt-5 pb-7 border-t border-emerald-900/30 backdrop-blur-sm"
-              style={{
-                animationDelay: "0.42s",
-                background: "linear-gradient(to top, rgba(7,18,13,1) 0%, rgba(7,18,13,0.72) 100%)",
-              }}
+              className="pt-5 pb-7 border-t border-emerald-900/30 backdrop-blur-sm"
+              style={{ background: "linear-gradient(to top, rgba(7,18,13,1) 0%, rgba(7,18,13,0.72) 100%)" }}
             >
               <VenueCarousel
-                venues={venues}
-                selectedId={selectedVenue.id}
-                onSelect={handleVenueSelect}
+                venues={realVenues}
+                selectedId={heroVenue.id}
+                onHeroChange={handleHeroChange}
+                onUserSelect={handleUserSelect}
               />
             </div>
           )}
         </div>
 
-        {/* Bottom accent line */}
         <div className="absolute bottom-0 left-0 right-0 h-0.5 opacity-50"
           style={{ background: "linear-gradient(90deg, transparent, #3bba74 35%, #5dd68f 65%, transparent)" }} />
       </section>
 
-      {/* ══ ABOUT ══════════════════════════════════════════════════ */}
-      <section id="about" className="py-28 px-16 max-w-[1280px] mx-auto" key={`a-${animKey}`}>
-        {/* Divider */}
+      {/* ══ ABOUT — uses detailVenue, no key prop (no re-mount) ════ */}
+      <section id="about" className="py-28 px-16 max-w-[1280px] mx-auto">
         <div className="h-px mb-20" style={{ background: "linear-gradient(to right, transparent, rgba(59,186,116,0.3), transparent)" }} />
 
         <div className="grid grid-cols-2 gap-20 items-start">
-          {/* Left */}
           <div>
             <div className="flex items-center gap-3 font-sans text-[0.62rem] font-semibold tracking-[0.24em] uppercase text-emerald-400 mb-6">
               <span className="w-4 h-px bg-emerald-500" />
               About this Space
             </div>
-            <h2 className="font-serif font-normal leading-tight mb-8 text-[#e8f5ee]"
+            <h2 className="font-serif font-normal leading-tight mb-8 text-[#e8f5ee] transition-all duration-500"
               style={{ fontSize: "clamp(1.9rem, 3.5vw, 3rem)" }}>
-              {selectedVenue.name}
+              {detailVenue.name}
             </h2>
-            <p className="font-sans text-[0.9rem] text-emerald-600 leading-[1.9] mb-8">
-              {selectedVenue.description}
-            </p>
-            <p className="font-sans text-[0.68rem] text-emerald-900 italic border-l-2 border-emerald-900 pl-4 leading-relaxed">
-              [Venue Description Placeholder] — This section will display the selected venue's full description from the tenant public API.
+            <p className="font-sans text-[0.9rem] text-emerald-600 leading-[1.9] mb-8 transition-all duration-500">
+              {detailVenue.description}
             </p>
           </div>
 
-          {/* Contact card */}
           <div className="relative rounded-3xl overflow-hidden p-8 border border-emerald-900/50"
             style={{ background: "linear-gradient(145deg, #0b1e13, #07120d)" }}>
-            {/* Decorative radial */}
             <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
               style={{ background: "radial-gradient(circle, rgba(59,186,116,0.07) 0%, transparent 70%)" }} />
 
@@ -481,9 +491,9 @@ export default function PremiumLayout() {
             </h3>
 
             {[
-              { icon: ICONS.phone,    label: "Phone",   val: selectedVenue.phone },
-              { icon: ICONS.email,    label: "Email",   val: selectedVenue.email },
-              { icon: ICONS.location, label: "Address", val: `${selectedVenue.city}, ${selectedVenue.state} — ${selectedVenue.pincode}` },
+              { icon: ICONS.phone,    label: "Phone",   val: detailVenue.phone || "Not Provided" },
+              { icon: ICONS.email,    label: "Email",   val: detailVenue.email || "Not Provided" },
+              { icon: ICONS.location, label: "Address", val: `${detailVenue.city}, ${detailVenue.state} — ${detailVenue.pincode}` },
             ].map((row, i) => (
               <div key={i} className={`flex items-center gap-4 py-4 ${i < 2 ? "border-b border-emerald-900/30" : ""}`}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-500/10 border border-emerald-500/20">
@@ -491,7 +501,7 @@ export default function PremiumLayout() {
                 </div>
                 <div>
                   <p className="font-sans text-[0.56rem] tracking-widest uppercase text-emerald-900 mb-0.5">{row.label}</p>
-                  <p className="font-sans text-[0.84rem] text-emerald-200/80">{row.val}</p>
+                  <p className="font-sans text-[0.84rem] text-emerald-200/80 transition-all duration-500">{row.val}</p>
                 </div>
               </div>
             ))}
@@ -502,7 +512,7 @@ export default function PremiumLayout() {
       </section>
 
       {/* ══ GALLERY ════════════════════════════════════════════════ */}
-      <section id="gallery" className="pb-28 px-16 max-w-[1280px] mx-auto" key={`g-${animKey}`}>
+      <section id="gallery" className="pb-28 px-16 max-w-[1280px] mx-auto">
         <div className="flex items-center gap-6 mb-10">
           <div className="flex items-center gap-3 font-sans text-[0.62rem] font-semibold tracking-[0.24em] uppercase text-emerald-400">
             <span className="w-4 h-px bg-emerald-500" />
@@ -510,21 +520,19 @@ export default function PremiumLayout() {
           </div>
           <div className="flex-1 h-px bg-emerald-950" />
           <span className="font-sans text-[0.68rem] text-emerald-900 tracking-wider">
-            {selectedVenue.images.length} photos
+            {detailVenue.images.length} photos
           </span>
         </div>
 
         <div className="grid gap-2.5" style={{ gridTemplateColumns: "7fr 5fr", gridTemplateRows: "repeat(3, 170px)", height: "530px" }}>
-          {/* Featured */}
           <div className="row-span-3 rounded-2xl overflow-hidden relative group">
-            <img src={selectedVenue.images[0]} alt="Featured"
+            <img src={detailVenue.images[0]} alt="Featured"
               className="w-full h-full object-cover transition-all duration-700 brightness-[0.85] saturate-[1.1] group-hover:scale-[1.04] group-hover:brightness-100" />
             <div className="absolute top-3.5 left-3.5 bg-[#07120d]/80 backdrop-blur-sm border border-emerald-500/30 rounded-full px-3.5 py-1">
               <span className="font-sans text-[0.56rem] tracking-widest uppercase text-emerald-400">Featured</span>
             </div>
           </div>
-          {/* Side images */}
-          {selectedVenue.images.slice(1, 4).map((img, i) => (
+          {detailVenue.images.slice(1, 4).map((img, i) => (
             <div key={i} className="rounded-xl overflow-hidden group">
               <img src={img} alt={`Photo ${i + 2}`}
                 className="w-full h-full object-cover transition-all duration-700 brightness-[0.85] saturate-[1.1] group-hover:scale-[1.06] group-hover:brightness-100" />
@@ -534,7 +542,7 @@ export default function PremiumLayout() {
       </section>
 
       {/* ══ BOOKING INSIGHTS ══════════════════════════════════════ */}
-      <section id="availability" className="py-28 px-16 bg-[#050d08]" key={`s-${animKey}`}>
+      <section id="availability" className="py-28 px-16 bg-[#050d08]">
         <div className="max-w-[1280px] mx-auto">
           <div className="flex items-center gap-6 mb-14">
             <div className="flex items-center gap-3 font-sans text-[0.62rem] font-semibold tracking-[0.24em] uppercase text-emerald-400">
@@ -547,24 +555,22 @@ export default function PremiumLayout() {
 
           <div className="grid grid-cols-4 gap-4">
             {[
-              { ph: "[Total Bookings]",           label: "Total Bookings",      val: stats.total,                       sub: "events hosted", icon: ICONS.check },
-              { ph: "[Upcoming Confirmed Events]", label: "Upcoming Confirmed",  val: stats.upcoming,                    sub: "events booked", icon: ICONS.calendar },
-              { ph: "[Most Hosted Event Type]",    label: "Most Hosted Event",   val: stats.popularEvent,                sub: "top category",  icon: ICONS.star },
-              { ph: "[Next Available Date]",       label: "Next Available Date", val: fmtDate(stats.nextAvailable),      sub: "first open slot", icon: ICONS.clock },
+              { ph: "[Total Bookings]",            label: "Total Bookings",      val: stats.total,                  sub: "events hosted",  icon: ICONS.check },
+              { ph: "[Upcoming Confirmed Events]",  label: "Upcoming Confirmed",  val: stats.upcoming,               sub: "events booked",  icon: ICONS.calendar },
+              { ph: "[Most Hosted Event Type]",     label: "Most Hosted Event",   val: stats.popularEvent,           sub: "top category",   icon: ICONS.star },
+              { ph: "[Next Available Date]",        label: "Next Available Date", val: fmtDate(stats.nextAvailable), sub: "first open slot", icon: ICONS.clock },
             ].map((c, i) => (
               <div key={i}
                 className="relative overflow-hidden rounded-2xl p-7 border border-emerald-900/50 transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-600/40 hover:shadow-[0_20px_44px_rgba(59,186,116,0.09)] group"
                 style={{ background: "linear-gradient(145deg, #0b1e13, #07120d)" }}
               >
-                {/* Top accent line */}
                 <div className="absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{ background: "linear-gradient(90deg, transparent, #3bba74, transparent)" }} />
-
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-6 bg-emerald-500/10 border border-emerald-500/20">
                   <Icon d={c.icon} className="w-5 h-5 text-emerald-400" />
                 </div>
                 <p className="font-sans text-[0.54rem] tracking-[0.18em] uppercase text-emerald-900 mb-2">{c.ph}</p>
-                <p className="font-serif text-[2.1rem] leading-tight text-[#e8f5ee] mb-1">{c.val}</p>
+                <p className="font-serif text-[2.1rem] leading-tight text-[#e8f5ee] mb-1 transition-all duration-500">{c.val}</p>
                 <p className="font-sans text-[0.68rem] text-emerald-900 mb-4">{c.sub}</p>
                 <div className="h-px" style={{ background: "linear-gradient(90deg, rgba(59,186,116,0.12), transparent)" }} />
                 <p className="font-sans text-[0.68rem] text-emerald-600 mt-3">{c.label}</p>
@@ -579,12 +585,12 @@ export default function PremiumLayout() {
         <div className="inline-flex items-center gap-2 bg-[#0b1e13] border border-emerald-800/30 rounded-full px-5 py-2 mb-3">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
           <span className="font-sans text-[0.68rem] text-emerald-600">
-            <span className="text-emerald-400 font-semibold">[Placeholder Mode Enabled]</span>
-            {" · "}This layout uses mock data. It will be connected to the tenant public API.
+            <span className="text-emerald-400 font-semibold">Live System </span>
+            {" · "}Connected to {tenantData?.name || "Platform"} APIs
           </span>
         </div>
         <p className="font-sans text-[0.6rem] text-emerald-950 mt-1">
-          © 2026 {tenant.name} · Multi-Tenant Event Platform · Powered by Verdana SaaS
+          © 2026 {tenantData?.name || "Event Space"} · Multi-Tenant Event Platform
         </p>
       </footer>
     </div>

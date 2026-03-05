@@ -1,6 +1,18 @@
 import { prisma } from "../prisma/client";
 import { AppError } from "../utils/AppError";
 
+const toCanonicalLayout = (layout: string): string => {
+  const normalized = layout.trim().toUpperCase();
+  if (normalized === "PRO_1") return "PRO";
+  if (normalized === "PREMIUM_1") return "PREMIUM";
+  return normalized;
+};
+
+const normalizeLayouts = (layouts?: string[]): string[] => {
+  const canonical = (layouts && layouts.length > 0 ? layouts : ["BASIC"]).map(toCanonicalLayout);
+  return Array.from(new Set(canonical));
+};
+
 interface CreatePlanInput {
   name: string;
   price: number;
@@ -8,6 +20,7 @@ interface CreatePlanInput {
   eventSpaceLimit: number;
   staffLimit: number;
   features: string[];
+  availableLayouts?: string[];
   status?: "ACTIVE" | "INACTIVE";
 }
 
@@ -21,6 +34,8 @@ interface PlanResponse {
   eventSpaceLimit: number;
   staffLimit: number;
   features: string[];
+  availableLayouts: string[];
+  layouts: { id: string; name: string; key: string }[];
   status: PlanStatus;
   subscriberCount: number;
   createdAt: Date;
@@ -30,36 +45,33 @@ const mapStatus = (isActive: boolean): PlanStatus =>
   isActive ? "ACTIVE" : "INACTIVE";
 
 const formatPlan = (
-  plan: {
-    id: string;
-    name: string;
-    price: number;
-    tenantLimit: number;
-    eventSpaceLimit: number;
-    staffLimit: number;
-    features: string[];
-    status: boolean;
-    createdAt: Date;
-  },
+  plan: any,
   subscriberCount = 0
-): PlanResponse => ({
-  id: plan.id,
-  name: plan.name,
-  price: plan.price,
-  tenantLimit: plan.tenantLimit,
-  eventSpaceLimit: plan.eventSpaceLimit,
-  staffLimit: plan.staffLimit,
-  features: plan.features,
-  status: mapStatus(plan.status),
-  subscriberCount,
-  createdAt: plan.createdAt,
-});
+): PlanResponse => {
+  // Extract layouts from relation
+  const layouts = plan.planLayouts?.map((pl: any) => pl.layout) || [];
+  return {
+    id: plan.id,
+    name: plan.name,
+    price: plan.price,
+    tenantLimit: plan.tenantLimit,
+    eventSpaceLimit: plan.eventSpaceLimit,
+    staffLimit: plan.staffLimit,
+    features: plan.features,
+    availableLayouts: layouts.map((l: any) => l.key),
+    layouts: layouts,
+    status: mapStatus(plan.status),
+    subscriberCount,
+    createdAt: plan.createdAt,
+  };
+};
 
 /**
  * CREATE PLAN
  */
 export const createPlan = async (data: CreatePlanInput): Promise<PlanResponse> => {
-  const { name, price, tenantLimit, eventSpaceLimit, staffLimit, features, status } = data;
+  const { name, price, tenantLimit, eventSpaceLimit, staffLimit, features, availableLayouts = ["BASIC"], status } = data;
+  const normalizedLayouts = normalizeLayouts(availableLayouts);
 
   if (
     !name?.trim() ||
@@ -74,6 +86,11 @@ export const createPlan = async (data: CreatePlanInput): Promise<PlanResponse> =
   const existing = await prisma.plan.findUnique({ where: { name } });
   if (existing) throw new AppError("Plan name already exists", 409);
 
+  // Map requested layout keys to actual layout IDs
+  const dbLayouts = await prisma.layout.findMany({
+    where: { key: { in: normalizedLayouts } }
+  });
+
   const plan = await prisma.plan.create({
     data: {
       name,
@@ -82,8 +99,14 @@ export const createPlan = async (data: CreatePlanInput): Promise<PlanResponse> =
       eventSpaceLimit,
       staffLimit,
       features,
+      planLayouts: {
+        create: dbLayouts.map(l => ({ layoutId: l.id }))
+      },
       ...(status !== undefined && { status: status === "ACTIVE" }),
     },
+    include: {
+      planLayouts: { include: { layout: true } }
+    }
   });
 
   return formatPlan(plan, 0);
@@ -99,9 +122,9 @@ export const getPlans = async (): Promise<PlanResponse[]> => {
       _count: {
         select: { tenants: true },
       },
+      planLayouts: { include: { layout: true } }
     },
   });
-  console.log(plans)
   return plans.map((plan) => formatPlan(plan, plan._count.tenants));
 };
 
@@ -115,6 +138,7 @@ export const getPlanById = async (id: string): Promise<PlanResponse | null> => {
       _count: {
         select: { tenants: true },
       },
+      planLayouts: { include: { layout: true } }
     },
   });
 
@@ -132,18 +156,36 @@ export const updatePlan = async (
   const existing = await prisma.plan.findUnique({ where: { id } });
   if (!existing) throw new AppError("Plan not found", 404);
 
-  const { status, ...rest } = data;
+  const { status, availableLayouts, ...rest } = data;
+  
+  let layoutUpdateQuery = {};
+  if (availableLayouts !== undefined) {
+    const normalizedLayouts = normalizeLayouts(availableLayouts);
+    const dbLayouts = await prisma.layout.findMany({
+      where: { key: { in: normalizedLayouts } }
+    });
+    
+    // Disconnect old, connect new via replacement
+    layoutUpdateQuery = {
+      planLayouts: {
+        deleteMany: {}, // clean existing connections
+        create: dbLayouts.map(l => ({ layoutId: l.id }))
+      }
+    };
+  }
 
   const plan = await prisma.plan.update({
     where: { id },
     data: {
       ...rest,
+      ...layoutUpdateQuery,
       ...(status !== undefined && { status: status === "ACTIVE" }),
     },
     include: {
       _count: {
         select: { tenants: true },
       },
+      planLayouts: { include: { layout: true } }
     },
   });
 

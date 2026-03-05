@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./hooks/PrivateRoute";
 import RoleRoute from "./hooks/RoleRoute";
 
-import PublicLanding from "./pages/PublicLanding";
 import TenantLogin from "./pages/TenantLogin";
 import PlatformLogin from "./pages/PlatformLogin";
 
@@ -27,18 +26,19 @@ const Unauthorized = () => <div>Unauthorized Access</div>;
 /* Optional fallback pages */
 
 
+import CustomDomainRouter, { isCustomDomain } from "./layouts/Landing/CustomDomainRouter";
+
 function App() {
+  const customDomainMode = isCustomDomain();
+
   return (
     <Routes>
       {/* ========================= */}
       {/* PUBLIC ROUTES */}
       {/* ========================= */}
 
-      {/* Public Landing */}
-      <Route path="/" element={<LandingLayout />} />
-
-      {/* Future Tenant Slug Landing */}
-     
+      {/* Public Landing (Dynamic layout resolver or default platform landing) */}
+      <Route path="/" element={customDomainMode ? <CustomDomainRouter /> : <LandingLayout />} />
 
       {/* Tenant Login */}
       <Route path="/login" element={<TenantLogin />} />
