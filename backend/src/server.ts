@@ -14,11 +14,10 @@ import notificationRoutes from "./routes/notification.routes";
 import tenantRoutes from "./routes/tenant.routes";
 import publicRoutes from "./routes/public.routes";
 const app = express();
-if (!process.env.CORS_ORIGIN) {
-  throw new Error("CORS_ORIGIN environment variable is not defined in the .env file");
-}
-
-const allowedOrigins = process.env.CORS_ORIGIN
+  if (!process.env.CORS_ORIGIN ){
+    throw new Error("CORS_ORIGIN environment variable is not defined in the .env file");
+  }
+  const allowedOrigins = process.env.CORS_ORIGIN
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -36,8 +35,22 @@ app.use(
         callback(null, true);
         return;
       }
-      // Allow dynamic subdomains like http://*.localhost:5173
-      if (origin.match(/^http:\/\/[a-zA-Z0-9-]+\.localhost:5173$/)) {
+      // Allow any subdomain of the allowed origins dynamically
+      const isAllowedSubdomain = allowedOrigins.some((allowedOrigin) => {
+        try {
+          const allowedUrl = new URL(allowedOrigin);
+          const originUrl = new URL(origin);
+          return (
+            originUrl.protocol === allowedUrl.protocol &&
+            originUrl.port === allowedUrl.port &&
+            originUrl.hostname.endsWith(`.${allowedUrl.hostname}`)
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      if (isAllowedSubdomain) {
         callback(null, true);
         return;
       }
