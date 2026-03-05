@@ -25,6 +25,24 @@ interface GetTenantsQuery {
   search?: string;
 }
 
+const normalizeCustomDomain = (value: string | undefined): string | null | undefined => {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+};
+
+const toCanonicalLayout = (layout: string): string => {
+  const normalized = layout.trim().toUpperCase();
+  if (normalized === "PRO_1") return "PRO";
+  if (normalized === "PREMIUM_1") return "PREMIUM";
+  return normalized;
+};
+
+const normalizeLayouts = (layouts: string[]): string[] => {
+  const values = (layouts && layouts.length > 0 ? layouts : ["BASIC"]).map(toCanonicalLayout);
+  return Array.from(new Set(values));
+};
+
 // Get tenant by ID
 export const getTenantById = async (id: string) => {
   const tenant = await prisma.tenant.findUnique({
@@ -198,6 +216,7 @@ export const updateTenant = async(
     phone?: string;
     planId?: string;
     status?: "ACTIVE" | "SUSPENDED";
+    customDomain?: string;
   }
 ) => {
   const existingTenant = await prisma.tenant.findUnique({
@@ -208,6 +227,8 @@ export const updateTenant = async(
     throw new AppError("Tenant not found", 404);
   }
 
+  let fallbackActiveLayout: string | undefined;
+
   if (data.planId) {
     const plan = await prisma.plan.findUnique({
       where: { id: data.planId },
@@ -215,6 +236,22 @@ export const updateTenant = async(
 
     if (!plan) {
       throw new AppError("Subscription plan not found", 404);
+    }
+
+    const allowedLayouts = normalizeLayouts(plan.availableLayouts || ["BASIC"]);
+    const currentActiveLayout = toCanonicalLayout(existingTenant.activeLayout || "BASIC");
+    if (!allowedLayouts.includes(currentActiveLayout)) {
+      fallbackActiveLayout = allowedLayouts[0];
+    }
+  }
+
+  const normalizedDomain = normalizeCustomDomain(data.customDomain);
+  if (normalizedDomain) {
+    const existingDomain = await prisma.tenant.findUnique({
+      where: { customDomain: normalizedDomain },
+    });
+    if (existingDomain && existingDomain.id !== tenantId) {
+      throw new AppError(`Custom domain ${normalizedDomain} is already in use by another tenant.`, 409);
     }
   }
 
@@ -225,7 +262,9 @@ export const updateTenant = async(
       email: data.email,
       phone: data.phone,
       planId: data.planId,
-      isActive: data.status === "ACTIVE",
+      ...(data.status !== undefined ? { isActive: data.status === "ACTIVE" } : {}),
+      ...(fallbackActiveLayout ? { activeLayout: fallbackActiveLayout } : {}),
+      ...(data.customDomain !== undefined ? { customDomain: normalizedDomain } : {}),
     },
     include: {
       plan: true,
@@ -292,6 +331,7 @@ export const patchTenant = async (
     email: string;
     phone: string;
     planId: string;
+    customDomain: string;
   }>
 ) => {
   const existingTenant = await prisma.tenant.findUnique({
@@ -302,6 +342,8 @@ export const patchTenant = async (
     throw new AppError("Tenant not found", 404);
   }
 
+  let fallbackActiveLayout: string | undefined;
+
   if (data.planId) {
     const plan = await prisma.plan.findUnique({
       where: { id: data.planId },
@@ -310,11 +352,31 @@ export const patchTenant = async (
     if (!plan) {
       throw new AppError("Subscription plan not found", 404);
     }
+
+    const allowedLayouts = normalizeLayouts(plan.availableLayouts || ["BASIC"]);
+    const currentActiveLayout = toCanonicalLayout(existingTenant.activeLayout || "BASIC");
+    if (!allowedLayouts.includes(currentActiveLayout)) {
+      fallbackActiveLayout = allowedLayouts[0];
+    }
+  }
+
+  const normalizedDomain = normalizeCustomDomain(data.customDomain);
+  if (normalizedDomain) {
+    const existingDomain = await prisma.tenant.findUnique({
+      where: { customDomain: normalizedDomain },
+    });
+    if (existingDomain && existingDomain.id !== tenantId) {
+      throw new AppError(`Custom domain ${normalizedDomain} is already in use by another tenant.`, 409);
+    }
   }
 
   return prisma.tenant.update({
     where: { id: tenantId },
-    data,
+    data: {
+      ...data,
+      ...(fallbackActiveLayout ? { activeLayout: fallbackActiveLayout } : {}),
+      ...(data.customDomain !== undefined ? { customDomain: normalizedDomain } : {}),
+    },
     include: {
       plan: true,
     },

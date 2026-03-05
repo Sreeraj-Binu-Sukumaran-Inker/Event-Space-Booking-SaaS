@@ -6,6 +6,7 @@ export interface CreateTenantPayload {
   adminId?: string; // made optional as modal doesn't send it, might be appended later
   email?: string;
   phone?: string;
+  customDomain?: string;
   adminName?: string;
   adminEmail?: string;
   adminPassword?: string;
@@ -64,6 +65,7 @@ export const updateTenant = async (
     phone?: string;
     planId?: string;
     status?: "ACTIVE" | "SUSPENDED";
+    customDomain?: string;
   }
 ) => {
   const response = await api.put(`/platform/tenants/${id}`, data);
@@ -83,4 +85,3 @@ export const changeTenantAdminPassword = async (
   const response = await api.patch(`/platform/tenants/${id}/password`, data);
   return response.data;
 };
-

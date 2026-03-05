@@ -9,6 +9,7 @@ export interface Plan {
   staffLimit: number;
   features: string[];
   status: "ACTIVE" | "INACTIVE";
+  availableLayouts?: string[];
   createdAt: string;
   subscriberCount: number;
   

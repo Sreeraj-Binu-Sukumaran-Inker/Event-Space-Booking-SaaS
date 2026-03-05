@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import CreateTenantModal from "./components/CreateTenantModal";
 import {
   createTenant,
@@ -28,6 +29,7 @@ interface TenantDetails {
   name: string;
   email?: string;
   phone?: string;
+  customDomain?: string;
   planId: string;
   status: "ACTIVE" | "SUSPENDED";
 }
@@ -308,6 +310,7 @@ export default function TenantsPage() {
         name: data.name,
         email: data.email,
         phone: data.phone,
+        customDomain: data.customDomain,
         planId: data.planId,
         status: data.isActive ? "ACTIVE" : "SUSPENDED",
       });
@@ -531,6 +534,7 @@ export default function TenantsPage() {
         }}
         onSubmit={async (payload) => {
           try {
+            setCreateError(null);
             if (isEditMode && selectedTenant) {
               await updateTenant(selectedTenant.id, payload);
             } else {
@@ -539,8 +543,13 @@ export default function TenantsPage() {
             }
             setIsModalOpen(false);
             fetchTenants();
-          } catch {
-            setCreateError("Operation failed.");
+          } catch (err) {
+            const message =
+              axios.isAxiosError(err)
+                ? ((err.response?.data as { message?: string } | undefined)?.message ?? err.message)
+                : "Operation failed.";
+            setCreateError(message);
+            throw err;
           }
         }}
       />

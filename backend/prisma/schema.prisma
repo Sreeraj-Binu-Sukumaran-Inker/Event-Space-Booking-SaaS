@@ -19,34 +19,38 @@ enum Role {
 }
 
 model Plan {
-  id              String   @id @default(uuid())
-  name            String   @unique
+  id              String       @id @default(uuid())
+  name            String       @unique
   price           Float
   tenantLimit     Int
   eventSpaceLimit Int
   staffLimit      Int
   features        String[]
-  status          Boolean  @default(true)
+  status          Boolean      @default(true)
   tenants         Tenant[]
-  createdAt       DateTime @default(now())
+  planLayouts     PlanLayout[]
+  createdAt       DateTime     @default(now())
 }
 
 model Tenant {
-  id          String    @id @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  planId      String?
-  createdById String?
-  plan        Plan?     @relation(fields: [planId], references: [id])
-  createdBy   User?     @relation("TenantCreator", fields: [createdById], references: [id])
-  users       User[]
-  venues      Venue[]
-  createdAt   DateTime  @default(now())
-  isActive    Boolean   @default(true)
-  isDeleted   Boolean   @default(false)
-  updatedAt   DateTime  @updatedAt @default(now())
-  bookings    Booking[]
+  id           String    @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  planId       String?
+  createdById  String?
+  plan         Plan?     @relation(fields: [planId], references: [id])
+  createdBy    User?     @relation("TenantCreator", fields: [createdById], references: [id])
+  users        User[]
+  venues       Venue[]
+  customDomain String?   @unique
+  layoutId     String?
+  layout       Layout?   @relation(fields: [layoutId], references: [id])
+  createdAt    DateTime  @default(now())
+  isActive     Boolean   @default(true)
+  isDeleted    Boolean   @default(false)
+  updatedAt    DateTime  @default(now()) @updatedAt
+  bookings     Booking[]
 
   @@index([planId])
   @@index([createdById])
@@ -72,36 +76,36 @@ model User {
 }
 
 model Venue {
-  id               String       @id @default(uuid())
+  id               String          @id @default(uuid())
   name             String
   location         String
   capacity         Int
   price            Float
   tenantId         String
-  assignedStaffIds String[]     @default([])
-  tenant           Tenant       @relation(fields: [tenantId], references: [id])
+  assignedStaffIds String[]        @default([])
+  tenant           Tenant          @relation(fields: [tenantId], references: [id])
   images           VenueImage[]
   bookings         Booking[]
   facilities       VenueFacility[]
-  eventTypes       String[]     @default([])
+  eventTypes       String[]        @default([])
   phone            String?
   description      String?
   city             String?
   state            String?
   pincode          String?
   email            String?
-  isActive         Boolean      @default(true)
-  createdAt        DateTime     @default(now())
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
 
   @@index([tenantId])
 }
 
 model VenueImage {
-  id         String   @id @default(uuid())
-  url        String
-  venueId    String
-  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  url       String
+  venueId   String
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   // ✅ NEW: audit + featured flag
   isFeatured  Boolean @default(false)
@@ -135,7 +139,7 @@ model Booking {
   totalPrice  Float
   status      BookingStatus @default(PENDING)
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
 
   // ✅ NEW: audit trail
   createdById String?
@@ -171,3 +175,28 @@ enum NotificationType {
   ERROR
 }
 
+model Layout {
+  id          String   @id @default(uuid())
+  name        String
+  key         String   @unique
+  description String?
+  previewUrl  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  planLayouts PlanLayout[]
+  tenants     Tenant[]
+}
+
+model PlanLayout {
+  id       String @id @default(uuid())
+  planId   String
+  layoutId String
+
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  layout Layout @relation(fields: [layoutId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, layoutId])
+  @@index([planId])
+  @@index([layoutId])
+}

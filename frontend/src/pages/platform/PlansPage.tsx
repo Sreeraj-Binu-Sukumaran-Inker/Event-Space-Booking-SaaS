@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   getPlans,
   createPlan,
@@ -158,7 +159,13 @@ export default function PlansPage() {
       const data = await getPlans();
       console.log(data)
       setPlans(data);
-    } catch { setError("Failed to load plans."); }
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err)
+          ? ((err.response?.data as { message?: string } | undefined)?.message ?? err.message)
+          : "Failed to load plans.";
+      setError(message);
+    }
     finally { setLoading(false); }
   };
 
@@ -271,10 +278,25 @@ interface PlanModalProps {
 function PlanModal({ initialData, onClose, onSave }: PlanModalProps) {
   const [form, setForm] = useState<CreatePlanPayload>(
     initialData
-      ? { name: initialData.name, price: initialData.price, tenantLimit: 1, eventSpaceLimit: initialData.eventSpaceLimit, staffLimit: initialData.staffLimit, features: initialData.features, status: initialData.status }
-      : { name: "", price: 0, tenantLimit: 1, eventSpaceLimit: 0, staffLimit: 0, features: [], status: "ACTIVE" }
+      ? { name: initialData.name, price: initialData.price, tenantLimit: 1, eventSpaceLimit: initialData.eventSpaceLimit, staffLimit: initialData.staffLimit, features: initialData.features, availableLayouts: initialData.availableLayouts || ["BASIC"], status: initialData.status }
+      : { name: "", price: 0, tenantLimit: 1, eventSpaceLimit: 0, staffLimit: 0, features: [], availableLayouts: ["BASIC"], status: "ACTIVE" }
   );
   const [featureInput, setFeatureInput] = useState("");
+
+  const ALL_LAYOUTS = [
+    { id: "BASIC", label: "Basic Layout" },
+    { id: "PRO", label: "Pro Layout" },
+    { id: "PREMIUM", label: "Premium Layout" },
+  ];
+
+  const toggleLayout = (layoutId: string) => {
+    const current = form.availableLayouts || [];
+    if (current.includes(layoutId)) {
+      setForm({ ...form, availableLayouts: current.filter(id => id !== layoutId) });
+    } else {
+      setForm({ ...form, availableLayouts: [...current, layoutId] });
+    }
+  };
 
   const addFeature = () => {
     if (!featureInput.trim()) return;
@@ -366,6 +388,24 @@ function PlanModal({ initialData, onClose, onSave }: PlanModalProps) {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Available Layouts</p>
+            <div className="grid grid-cols-2 gap-3">
+              {ALL_LAYOUTS.map((layout) => (
+                <label key={layout.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={(form.availableLayouts || []).includes(layout.id)}
+                    onChange={() => toggleLayout(layout.id)}
+                    className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">{layout.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Select the landing page layouts tenants on this plan can use for their custom domains.</p>
           </div>
         </div>
 

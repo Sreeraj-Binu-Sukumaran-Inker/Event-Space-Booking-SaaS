@@ -11,14 +11,41 @@ import venueRoutes from "./routes/venue.routes";
 import bookingRoutes from "./routes/booking.routes";
 import staffRoutes from "./routes/staff.route";
 import notificationRoutes from "./routes/notification.routes";
+import tenantRoutes from "./routes/tenant.routes";
+import publicRoutes from "./routes/public.routes";
 const app = express();
+if (!process.env.CORS_ORIGIN) {
+  throw new Error("CORS_ORIGIN environment variable is not defined in the .env file");
+}
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+         callback(null, true);
+         return;
+      }
+      // Allow exact matches from allowedOrigins array
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Allow dynamic subdomains like http://*.localhost:5173
+      if (origin.match(/^http:\/\/[a-zA-Z0-9-]+\.localhost:5173$/)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   })
 );
-
 app.use(express.json({ limit: "2mb" }));
 
 app.use(cookieParser()); // 
@@ -49,6 +76,12 @@ app.use("/api/staff", staffRoutes);
 // Notification Routes
 app.use("/api/notifications", notificationRoutes);
 
+// Tenant Routes
+app.use("/api/tenant", tenantRoutes);
+
+// Public Routes
+app.use("/api/public", publicRoutes);
+
 app.use(globalErrorHandler);
 
 const PORT: number = Number(process.env.PORT ?? "4000");
@@ -60,4 +93,3 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Trigger restart

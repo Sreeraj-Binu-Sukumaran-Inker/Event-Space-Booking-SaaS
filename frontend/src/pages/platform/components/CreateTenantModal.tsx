@@ -11,6 +11,7 @@ interface TenantDetails {
   name: string;
   email?: string;
   phone?: string;
+  customDomain?: string;
   planId: string;
   status: "ACTIVE" | "SUSPENDED";
 }
@@ -19,6 +20,7 @@ interface CreateTenantPayload {
   name: string;
   email?: string;
   phone?: string;
+  customDomain?: string;
   planId: string;
   status: "ACTIVE" | "SUSPENDED";
   adminName?: string;
@@ -78,6 +80,7 @@ export default function CreateTenantModal({
     name: "",
     email: "",
     phone: "",
+    customDomain: "",
     planId: "",
     status: "ACTIVE" as "ACTIVE" | "SUSPENDED",
   });
@@ -109,6 +112,7 @@ export default function CreateTenantModal({
         name: tenant.name ?? "",
         email: tenant.email ?? "",
         phone: tenant.phone ?? "",
+        customDomain: tenant.customDomain ?? "",
         planId: tenant.planId ?? "",
         status: tenant.status ?? "ACTIVE",
       });
@@ -126,6 +130,7 @@ export default function CreateTenantModal({
         name: "",
         email: "",
         phone: "",
+        customDomain: "",
         planId: "",
         status: "ACTIVE",
       });
@@ -182,6 +187,7 @@ export default function CreateTenantModal({
       name: form.name,
       email: form.email,
       phone: form.phone,
+      ...(isEditMode ? { customDomain: form.customDomain } : {}),
       planId: form.planId,
       status: form.status,
       ...(isEditMode ? {} : { adminName: admin.name, adminEmail: admin.email, adminPassword: admin.password }),
@@ -190,7 +196,6 @@ export default function CreateTenantModal({
     setLoading(true);
     try {
       await onSubmit(payload);
-      onClose();
     } finally {
       setLoading(false);
     }
@@ -292,6 +297,21 @@ export default function CreateTenantModal({
               className="w-full border px-3 py-2 rounded-lg"
             />
           </div>
+
+          {isEditMode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Custom Domain
+              </label>
+              <input
+                type="text"
+                value={form.customDomain}
+                onChange={(e) => setForm({ ...form, customDomain: e.target.value })}
+                className="w-full border px-3 py-2 rounded-lg"
+                placeholder="e.g. bookings.yourcompany.com"
+              />
+            </div>
+          )}
             </>
           )}
 
